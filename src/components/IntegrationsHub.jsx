@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Activity, ExternalLink, CheckCircle2, Clock, FileText, 
-  GitBranch, LayoutKanban, Video, GitCommit, GitPullRequest, 
+  GitBranch, Kanban, Video, GitCommit, GitPullRequest, 
   Server, ShieldCheck, TerminalSquare, Loader2, ArrowUpRight
 } from 'lucide-react';
 import '../App.css';
@@ -58,7 +58,7 @@ export default function IntegrationsHub({ currentUser }) {
         : <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-inner"><GitPullRequest className="w-5 h-5 text-indigo-400"/></div><span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Pull Req</span></div>;
     }
     if (platform === 'Jira' || platform === 'Agile') {
-      return <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-inner"><LayoutKanban className="w-5 h-5 text-emerald-400"/></div><span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Ticket</span></div>;
+      return <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-inner"><Kanban className="w-5 h-5 text-emerald-400"/></div><span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Ticket</span></div>;
     }
     if (platform === 'Confluence' || platform === 'Docs') {
       return <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shadow-inner"><FileText className="w-5 h-5 text-amber-400"/></div><span className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Document</span></div>;
@@ -135,7 +135,7 @@ export default function IntegrationsHub({ currentUser }) {
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                    <LayoutKanban className="w-5 h-5 text-indigo-400" />
+                    <Kanban className="w-5 h-5 text-indigo-400" />
                 </div>
                 <div>
                     <h4 className="font-black text-white text-sm">Agile Execution Matrix</h4>
@@ -193,6 +193,7 @@ export default function IntegrationsHub({ currentUser }) {
             <span className="bg-[#131B2B] text-slate-400 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-700/80 shadow-inner hidden md:block">
               <TerminalSquare className="w-3.5 h-3.5 inline mr-1.5 text-sky-400"/> Webhook Sync Active
             </span>
+
           </div>
           
           <div className="p-8 flex-1 overflow-y-auto bg-transparent relative z-10 custom-scrollbar scroll-smooth">
