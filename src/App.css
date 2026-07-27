@@ -1,0 +1,72 @@
+/* Custom Enterprise Dashboard Enhancements */
+
+.enterprise-card {
+  background-color: var(--bg);
+  border: 2px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease-in-out;
+}
+
+.enterprise-card:hover {
+  border-color: var(--accent-border);
+}
+
+/* Pulsing Live Telemetry Indicator */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* High-End Enterprise UI Enhancements */
+
+/* Card Lifts on Hover for Interactiveness */
+.interactive-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+}
+
+.interactive-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+  border-color: #cbd5e1;
+}
+
+/* Interactive Input Fields */
+.input-interactive {
+  transition: all 0.2s ease;
+  background-color: #f8fafc;
+}
+.input-interactive:focus {
+  background-color: #ffffff;
+  transform: scale(1.01);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Smooth Fade In for Page Loads */
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Button Click Ripple Effect */
+.btn-press:active {
+  transform: scale(0.97);
+}
