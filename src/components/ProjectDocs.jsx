@@ -1,4 +1,3 @@
-// File: frontend/src/components/ProjectDocs.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import * as Icons from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx'; 
@@ -22,11 +21,11 @@ const formatBytes = (bytes) => {
 };
 
 const getFileIcon = (mimetype) => {
-    if (!mimetype) return <SafeIcon name="File" className="text-slate-400" />;
+    if (!mimetype) return <SafeIcon name="File" className="text-slate-500" />;
     if (mimetype.includes('pdf')) return <SafeIcon name="FileText" className="text-rose-400" />;
     if (mimetype.includes('image')) return <SafeIcon name="Image" className="text-sky-400" />;
-    if (mimetype.includes('word') || mimetype.includes('document')) return <SafeIcon name="FileSignature" className="text-blue-500" />;
-    if (mimetype.includes('presentation') || mimetype.includes('powerpoint')) return <SafeIcon name="Presentation" className="text-orange-500" />;
+    if (mimetype.includes('word') || mimetype.includes('document')) return <SafeIcon name="FileSignature" className="text-blue-400" />;
+    if (mimetype.includes('presentation') || mimetype.includes('powerpoint')) return <SafeIcon name="Presentation" className="text-orange-400" />;
     if (mimetype.includes('json') || mimetype.includes('javascript')) return <SafeIcon name="FileJson" className="text-amber-400" />;
     return <SafeIcon name="File" className="text-slate-400" />;
 };
@@ -47,19 +46,18 @@ const parseKnowledgeItems = (primary, secondary, fallback) => {
 
 // Tailwind Purge-Safe Color Maps
 const COLOR_MAP = {
-    sky: { text: 'text-sky-400', hover: 'group-hover:text-sky-300', bullet: 'text-sky-500' },
-    emerald: { text: 'text-emerald-400', hover: 'group-hover:text-emerald-300', bullet: 'text-emerald-500' },
-    rose: { text: 'text-rose-400', hover: 'group-hover:text-rose-300', bullet: 'text-rose-500' },
-    indigo: { text: 'text-indigo-400', hover: 'group-hover:text-indigo-300', bullet: 'text-indigo-500' },
-    amber: { text: 'text-amber-400', hover: 'group-hover:text-amber-300', bullet: 'text-amber-500' },
-    orange: { text: 'text-orange-400', hover: 'group-hover:text-orange-300', bullet: 'text-orange-500' },
+    sky: { text: 'text-sky-400', border: 'border-sky-500/20', bg: 'bg-sky-500/5', shadow: 'hover:shadow-[0_5px_20px_rgba(14,165,233,0.15)]', bullet: 'text-sky-500' },
+    emerald: { text: 'text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/5', shadow: 'hover:shadow-[0_5px_20px_rgba(16,185,129,0.15)]', bullet: 'text-emerald-500' },
+    rose: { text: 'text-rose-400', border: 'border-rose-500/20', bg: 'bg-rose-500/5', shadow: 'hover:shadow-[0_5px_20px_rgba(225,29,72,0.15)]', bullet: 'text-rose-500' },
+    indigo: { text: 'text-indigo-400', border: 'border-indigo-500/20', bg: 'bg-indigo-500/5', shadow: 'hover:shadow-[0_5px_20px_rgba(99,102,241,0.15)]', bullet: 'text-indigo-500' },
+    amber: { text: 'text-amber-400', border: 'border-amber-500/20', bg: 'bg-amber-500/5', shadow: 'hover:shadow-[0_5px_20px_rgba(245,158,11,0.15)]', bullet: 'text-amber-500' },
+    orange: { text: 'text-orange-400', border: 'border-orange-500/20', bg: 'bg-orange-500/5', shadow: 'hover:shadow-[0_5px_20px_rgba(249,115,22,0.15)]', bullet: 'text-orange-500' },
 };
 
 export default function ProjectDocs() {
     const { user } = useApp();
     const [projects, setProjects] = useState([]);
     
-    // Using an ID as a single source of truth prevents out-of-sync state bugs
     const [activeProjectId, setActiveProjectId] = useState(null);
     const activeProject = useMemo(() => projects.find(p => p._id === activeProjectId) || null, [projects, activeProjectId]);
 
@@ -106,23 +104,17 @@ export default function ProjectDocs() {
 
             if (data?.success) {
                 setProjects(prev => prev.map(p => 
-                    p._id === activeProject._id 
-                        ? { ...p, files: [...(p.files || []), data.file] } 
-                        : p
+                    p._id === activeProject._id ? { ...p, files: [...(p.files || []), data.file] } : p
                 ));
             }
         } catch (error) {
-            console.error("Upload error:", error);
             alert('File upload failed. Please check backend connection.');
         } finally {
             setIsUploading(false);
-            e.target.value = ''; // Reset input so same file can be uploaded again if needed
+            e.target.value = ''; 
         }
     };
 
-    // ==========================================
-    // 📂 ROBUST FIXED FILE DELETE HANDLER
-    // ==========================================
     const handleDeleteFile = async (fileId) => {
         if (!window.confirm("Permanently delete this file from the Vault? This action cannot be undone.")) return;
         
@@ -131,15 +123,10 @@ export default function ProjectDocs() {
             if (data?.success) {
                 setProjects(prev => prev.map(p => {
                     if (p._id !== activeProject._id) return p;
-                    return {
-                        ...p,
-                        // Convert both to strings to ensure reliable comparison regardless of type mismatches (ObjectId vs String)
-                        files: p.files.filter(f => String(f._id || f.id) !== String(fileId))
-                    };
+                    return { ...p, files: p.files.filter(f => String(f._id || f.id) !== String(fileId)) };
                 }));
             }
         } catch (error) {
-            console.error("Delete file error:", error);
             alert("Failed to delete file. Check backend logs.");
         }
     };
@@ -158,22 +145,16 @@ export default function ProjectDocs() {
             
             if (data?.success) {
                 setProjects(prev => prev.map(p => 
-                    p._id === activeProject._id 
-                        ? { ...p, vaultAnalyses: [data.analysis, ...(p.vaultAnalyses || [])] } 
-                        : p
+                    p._id === activeProject._id ? { ...p, vaultAnalyses: [data.analysis, ...(p.vaultAnalyses || [])] } : p
                 ));
             }
         } catch (error) {
-            console.error("AI Analysis error:", error);
             alert("Failed to run AI Analysis.");
         } finally {
             setIsAnalyzing(false);
         }
     };
 
-    // ==========================================
-    // 🧠 ROBUST FIXED AI ANALYSIS DELETE HANDLER
-    // ==========================================
     const deleteAnalysis = async (analysisId) => {
         if (!window.confirm("Permanently delete this AI Insight?")) return;
         
@@ -182,15 +163,10 @@ export default function ProjectDocs() {
             if (data?.success) {
                 setProjects(prev => prev.map(p => {
                     if (p._id !== activeProject._id) return p;
-                    return {
-                        ...p,
-                        // Convert both to strings to prevent ObjectId mismatch bugs during state update filtering
-                        vaultAnalyses: p.vaultAnalyses.filter(a => String(a._id || a.id) !== String(analysisId))
-                    };
+                    return { ...p, vaultAnalyses: p.vaultAnalyses.filter(a => String(a._id || a.id) !== String(analysisId)) };
                 }));
             }
         } catch (error) {
-            console.error("Delete analysis error:", error);
             alert("Failed to delete analysis.");
         }
     };
@@ -202,9 +178,10 @@ export default function ProjectDocs() {
         try {
             const data = typeof content === 'string' ? JSON.parse(content) : content;
             return (
-                <div className="space-y-4">
+                <div className="space-y-5 mt-4">
                     {data.projectSummary && (
-                        <div className="bg-sky-500/10 border border-sky-500/30 p-4 rounded-xl text-sky-100 text-sm leading-relaxed shadow-inner">
+                        <div className="bg-sky-500/10 border border-sky-500/30 p-5 rounded-2xl text-sky-50 text-sm leading-relaxed shadow-inner">
+                            <span className="font-black text-sky-400 uppercase tracking-widest text-[10px] block mb-2">Executive Summary</span>
                             {data.projectSummary}
                         </div>
                     )}
@@ -219,45 +196,55 @@ export default function ProjectDocs() {
                 </div>
             );
         } catch {
-            return <div className="text-sm text-slate-300 whitespace-pre-wrap">{content}</div>;
+            return <div className="text-sm text-slate-300 whitespace-pre-wrap mt-4 bg-slate-900 p-4 rounded-xl border border-slate-700">{content}</div>;
         }
     };
 
     if (loading) return (
-        <div className="flex flex-col items-center justify-center h-full space-y-4 min-h-[50vh]">
-            <SafeIcon name="Loader2" className="w-10 h-10 animate-spin text-sky-500" />
-            <p className="text-sky-400 font-black uppercase tracking-widest text-xs animate-pulse">Syncing Vault...</p>
+        <div className="flex flex-col items-center justify-center h-[70vh] space-y-4 font-sans text-slate-200">
+            <SafeIcon name="Loader2" className="w-12 h-12 animate-spin text-sky-500" />
+            <p className="text-sky-400 font-black uppercase tracking-widest text-xs animate-pulse">Syncing Enterprise Vault...</p>
         </div>
     );
 
     if (projects.length === 0) return (
-        <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400 font-sans">
-            <SafeIcon name="FolderSearch" size={64} className="mb-4 opacity-20" />
-            <h3 className="text-2xl font-black text-white">No active projects found.</h3>
-            <p className="mt-2 text-sm">Orchestrate a new initiative via the AI Dashboard to access documentation.</p>
+        <div className="flex flex-col items-center justify-center h-[70vh] text-slate-500 font-sans text-center">
+            <div className="w-24 h-24 bg-slate-900/50 rounded-full flex items-center justify-center mb-6 border border-slate-800 shadow-inner">
+                <SafeIcon name="FolderSearch" size={40} className="text-slate-600" />
+            </div>
+            <h3 className="text-2xl font-black text-white">No active projects found</h3>
+            <p className="mt-2 text-sm max-w-md mx-auto">Orchestrate a new initiative via the AI Dashboard to establish an immutable document vault.</p>
         </div>
     );
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn pb-12 font-sans text-slate-200">
-            {/* Header & Tabs */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-blue-900/50 pb-5 gap-4">
+        <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn pb-16 font-sans text-slate-200 relative z-10">
+            
+            {/* 🌌 AMBIENT BACKGROUND GLOWS */}
+            <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-sky-900/20 rounded-full mix-blend-screen filter blur-[150px] opacity-50 pointer-events-none z-0"></div>
+            <div className="fixed bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-emerald-900/10 rounded-full mix-blend-screen filter blur-[150px] opacity-50 pointer-events-none z-0"></div>
+
+            {/* 🚀 HEADER & PROJECT SWITCHER */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800/80 pb-6 gap-6 relative z-10">
                 <div>
-                    <h2 className="text-3xl font-black text-white flex items-center tracking-tight">
-                        <SafeIcon name="BookOpen" className="w-8 h-8 mr-3 text-blue-500" /> Persistent Project Documentation
+                    <h2 className="text-3xl font-black text-white flex items-center tracking-tight gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-sky-400 to-indigo-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(14,165,233,0.4)]">
+                            <SafeIcon name="BookOpen" className="w-5 h-5 text-white" />
+                        </div>
+                        Enterprise Architecture & Vault
                     </h2>
-                    <p className="text-slate-400 font-bold mt-2 text-sm">AI Knowledge Base and secure Enterprise File Vault.</p>
+                    <p className="text-slate-400 font-medium mt-2 text-sm ml-1">Immutable AI Knowledge Base and Secure File Storage.</p>
                 </div>
                 
-                <div className="bg-[#0D1117] border border-slate-700 p-2 rounded-xl flex items-center shadow-inner overflow-x-auto max-w-full hide-scrollbar">
+                <div className="bg-[#0B101A]/80 backdrop-blur-md border border-slate-700/80 p-1.5 rounded-2xl flex items-center shadow-inner overflow-x-auto max-w-full hide-scrollbar">
                     {projects.map(p => (
                         <button 
                             key={p._id}
                             onClick={() => setActiveProjectId(p._id)}
-                            className={`whitespace-nowrap px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+                            className={`whitespace-nowrap px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
                                 activeProjectId === p._id 
-                                    ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30 shadow-md' 
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                                    ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.1)]' 
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
                             }`}
                         >
                             {p.title}
@@ -267,42 +254,55 @@ export default function ProjectDocs() {
             </div>
 
             {activeProject && (
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 relative z-10">
                     
-                    {/* LEFT COLUMN: Immutable AI Knowledge Base + Saved Analyses */}
+                    {/* ==========================================
+                        LEFT COLUMN: AI KNOWLEDGE BASE & ANALYSES 
+                        ========================================== */}
                     <div className="xl:col-span-8 space-y-8">
-                        <div className="bg-[#131B2B]/80 backdrop-blur-xl border border-slate-700/50 p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500 opacity-50"></div>
-                            <div className="flex justify-between items-center mb-8 border-b border-slate-700/50 pb-6">
-                                <h3 className="text-xl font-black text-white flex items-center gap-3">
-                                    <SafeIcon name="BrainCircuit" className="text-emerald-400"/> Primary Architectural Blueprint
+                        
+                        {/* Blueprint Container */}
+                        <div className="bg-[#0B101A]/90 backdrop-blur-2xl border border-slate-800/80 p-8 rounded-3xl shadow-2xl relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none group-hover:bg-emerald-500/10 transition-colors duration-700"></div>
+                            
+                            <div className="flex justify-between items-center mb-8 border-b border-slate-700/50 pb-5">
+                                <h3 className="text-xl font-black text-white flex items-center gap-3 tracking-tight">
+                                    <span className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                                        <SafeIcon name="BrainCircuit" className="w-4 h-4 text-emerald-400"/> 
+                                    </span>
+                                    Primary Architectural Blueprint
                                 </h3>
-                                <span className="px-3 py-1.5 bg-slate-900 text-emerald-400 border border-emerald-500/30 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                                    <SafeIcon name="Lock" size={12}/> Immutable Core
+                                <span className="px-3 py-1.5 bg-[#131B2B] text-emerald-400 border border-emerald-500/30 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-inner">
+                                    <SafeIcon name="Lock" size={10}/> Immutable Core
                                 </span>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                                 <BlueprintCard title="Business Goals" icon="Target" color="sky" items={parseKnowledgeItems(activeProject.analysis?.businessRequirements?.goals, activeProject.projectKnowledgeBase?.systemArchitecture, "Strategic objectives pending definition.")} />
                                 <BlueprintCard title="Functional Reqs" icon="ListChecks" color="emerald" items={parseKnowledgeItems(activeProject.analysis?.functionalRequirements?.featureList, activeProject.projectKnowledgeBase?.coreFeatures, "Core features pending allocation.")} />
                                 <BlueprintCard title="Security Protocols" icon="ShieldCheck" color="rose" items={parseKnowledgeItems(activeProject.analysis?.nonFunctionalRequirements?.securityAndCompliance, activeProject.projectKnowledgeBase?.qaTestingStrategy, "Zero-trust protocols standing by.")} />
                                 <BlueprintCard title="Tech Environment" icon="Cpu" color="indigo" items={parseKnowledgeItems(activeProject.analysis?.technicalRequirements?.techStack, activeProject.projectKnowledgeBase?.databaseDesign, "Architecture environment unset.")} />
-                                <BlueprintCard title="Non-Functional Reqs" icon="Activity" color="amber" items={parseKnowledgeItems(activeProject.analysis?.nonFunctionalRequirements?.performance, null, "Uptime and performance baselines pending.")} />
+                                <BlueprintCard title="Performance Reqs" icon="Activity" color="amber" items={parseKnowledgeItems(activeProject.analysis?.nonFunctionalRequirements?.performance, null, "Uptime and performance baselines pending.")} />
                                 <BlueprintCard title="Project Constraints" icon="AlertTriangle" color="orange" items={parseKnowledgeItems(activeProject.analysis?.constraintsAndDependencies?.budgetAndTimeline, null, "No timeline boundaries detected.")} />
                             </div>
                         </div>
 
-                        {/* Persistent AI Vault Analyzer */}
-                        <div className="bg-[#0D1117] border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-slate-800 pb-5 mb-6 gap-4">
+                        {/* AI Vault Analyzer Container */}
+                        <div className="bg-[#0B101A]/90 backdrop-blur-2xl border border-slate-800/80 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-slate-700/50 pb-5 mb-6 gap-4">
                                 <div>
-                                    <h3 className="text-lg font-black text-white flex items-center gap-3"><SafeIcon name="Sparkles" className="text-amber-400"/> Vault Intelligence & Insights</h3>
-                                    <p className="text-xs text-slate-500 mt-1 font-bold">Cross-reference project blueprints with newly uploaded files.</p>
+                                    <h3 className="text-xl font-black text-white flex items-center gap-3 tracking-tight">
+                                        <span className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+                                            <SafeIcon name="Sparkles" className="w-4 h-4 text-amber-400"/> 
+                                        </span>
+                                        Vault Intelligence & Insights
+                                    </h3>
+                                    <p className="text-xs text-slate-400 mt-2 font-medium">Cross-reference master blueprints with newly uploaded vault data.</p>
                                 </div>
                                 <button 
                                     onClick={runVaultAnalysis}
                                     disabled={isAnalyzing || !activeProject.files?.length}
-                                    className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                                    className="px-6 py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.2)] transition-all disabled:opacity-50 disabled:grayscale shrink-0 btn-press"
                                 >
                                     {isAnalyzing ? <><SafeIcon name="Loader2" size={14} className="animate-spin" /> Scanning Vault...</> : <><SafeIcon name="Radar" size={14} /> Scan Uploaded Data</>}
                                 </button>
@@ -310,32 +310,34 @@ export default function ProjectDocs() {
 
                             <div className="space-y-6">
                                 {(!activeProject.vaultAnalyses?.length) ? (
-                                    <div className="p-8 text-center bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
-                                        <SafeIcon name="Bot" size={32} className="mx-auto text-slate-600 mb-3 opacity-50" />
-                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">No Analyses Generated Yet</p>
-                                        <p className="text-[10px] text-slate-600 mt-2">Upload files to the vault and run a scan to extract intelligence.</p>
+                                    <div className="p-10 text-center bg-[#131B2B]/50 rounded-2xl border-2 border-slate-800 border-dashed animate-fadeIn">
+                                        <SafeIcon name="Bot" size={40} className="mx-auto text-slate-600 mb-4 opacity-40" />
+                                        <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No Intelligence Scans Executed</p>
+                                        <p className="text-xs text-slate-500 mt-2 font-medium">Upload files to the vault and run a scan to extract intelligence.</p>
                                     </div>
                                 ) : (
                                     activeProject.vaultAnalyses.map((analysis) => (
-                                        <div key={analysis._id} className="bg-[#131B2B]/60 border border-slate-700/50 rounded-2xl p-6 shadow-md relative group">
-                                            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-[50px] pointer-events-none"></div>
-                                            <div className="flex justify-between items-start mb-6 relative z-10">
+                                        <div key={analysis._id} className="bg-[#131B2B]/80 border border-slate-700/80 rounded-3xl p-8 shadow-lg relative group animate-fadeIn hover:border-amber-500/30 transition-colors">
+                                            <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-full blur-[60px] pointer-events-none group-hover:bg-amber-500/10 transition-colors"></div>
+                                            
+                                            <div className="flex justify-between items-start mb-4 relative z-10">
                                                 <div>
-                                                    <h4 className="text-sm font-black text-white">{analysis.title || 'Vault Analysis Report'}</h4>
-                                                    <p className="text-[10px] font-mono text-slate-400 mt-1">
-                                                        Requested by: {analysis.generatedBy || 'System'} • {new Date(analysis.createdAt).toLocaleString()}
+                                                    <h4 className="text-lg font-black text-white">{analysis.title || 'Vault Analysis Report'}</h4>
+                                                    <p className="text-[10px] font-mono font-bold text-slate-500 mt-2 tracking-wide uppercase">
+                                                        Req By: <span className="text-sky-400">{analysis.generatedBy || 'System'}</span> • {new Date(analysis.createdAt).toLocaleString()}
                                                     </p>
                                                 </div>
                                                 {isManager && (
                                                     <button 
                                                         onClick={() => deleteAnalysis(analysis._id)} 
-                                                        className="text-slate-500 hover:text-rose-500 bg-slate-900/80 hover:bg-rose-500/10 p-2 rounded-lg border border-slate-700 hover:border-rose-500/30 transition-all flex items-center justify-center shrink-0 shadow-sm"
+                                                        className="w-8 h-8 rounded-lg bg-[#0D1117] text-slate-500 hover:bg-rose-500/20 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 flex items-center justify-center transition-all shadow-sm"
                                                         title="Delete Insight"
                                                     >
                                                         <SafeIcon name="Trash2" size={14} />
                                                     </button>
                                                 )}
                                             </div>
+                                            
                                             <div className="relative z-10">
                                                 {renderParsedAnalysis(analysis.content)}
                                             </div>
@@ -346,34 +348,42 @@ export default function ProjectDocs() {
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN: Enterprise File Vault */}
+                    {/* ==========================================
+                        RIGHT COLUMN: ENTERPRISE FILE VAULT 
+                        ========================================== */}
                     <div className="xl:col-span-4 space-y-6">
-                        <div className="bg-[#0D1117] border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col h-[850px] relative overflow-hidden">
+                        <div className="bg-[#0B101A]/90 backdrop-blur-2xl border border-slate-800/80 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col h-[850px] relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-[100px] pointer-events-none"></div>
                             
-                            <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4 shrink-0 relative z-10">
-                                <h3 className="text-lg font-black text-white flex items-center gap-3"><SafeIcon name="HardDrive" className="text-sky-400"/> Enterprise File Vault</h3>
-                                <span className="bg-sky-500/10 text-sky-400 px-2 py-1 rounded text-[10px] font-black border border-sky-500/20">{activeProject.files?.length || 0} Files</span>
+                            <div className="flex justify-between items-center mb-6 border-b border-slate-700/50 pb-5 shrink-0 relative z-10">
+                                <h3 className="text-lg font-black text-white flex items-center gap-3 tracking-tight">
+                                    <SafeIcon name="HardDrive" className="text-sky-400"/> Enterprise File Vault
+                                </h3>
+                                <span className="bg-[#131B2B] text-sky-400 px-3 py-1 rounded-lg text-[10px] font-black tracking-widest border border-slate-700 shadow-inner">
+                                    {activeProject.files?.length || 0} Files
+                                </span>
                             </div>
 
-                            {/* Upload Area */}
-                            <div className="relative group shrink-0 mb-6 z-10">
-                                <div className="absolute inset-0 bg-sky-500/5 rounded-2xl blur-xl group-hover:bg-sky-500/10 transition-colors pointer-events-none"></div>
-                                <div className="border-2 border-dashed border-slate-700 hover:border-sky-500 bg-[#131B2B]/50 rounded-2xl p-8 text-center transition-all relative z-10">
+                            {/* Dynamic Upload Dropzone */}
+                            <div className="relative group/dropzone shrink-0 mb-6 z-10">
+                                <div className="absolute inset-0 bg-sky-500/5 rounded-3xl blur-xl group-hover/dropzone:bg-sky-500/15 transition-colors pointer-events-none"></div>
+                                <div className="border-2 border-dashed border-slate-700/70 hover:border-sky-500/60 bg-[#131B2B]/40 rounded-3xl p-8 text-center transition-all relative z-10 flex flex-col items-center justify-center min-h-[160px]">
                                     {isUploading ? (
-                                        <div className="flex flex-col items-center">
-                                            <SafeIcon name="Loader2" size={32} className="text-sky-400 animate-spin mb-3" />
-                                            <p className="text-[10px] uppercase font-black tracking-widest text-sky-400">Vaulting File Securely...</p>
+                                        <div className="flex flex-col items-center animate-fadeIn">
+                                            <SafeIcon name="Loader2" size={36} className="text-sky-400 animate-spin mb-4" />
+                                            <p className="text-[10px] uppercase font-black tracking-widest text-sky-400 animate-pulse">Vaulting File Securely...</p>
                                         </div>
                                     ) : (
-                                        <>
-                                            <SafeIcon name="UploadCloud" size={32} className="text-slate-500 group-hover:text-sky-400 mx-auto mb-3 transition-colors" />
-                                            <p className="text-xs font-bold text-slate-400 mb-4">Drag & Drop or Click to Upload Documents</p>
-                                            <label className="cursor-pointer bg-slate-800 hover:bg-sky-600 text-white text-[10px] font-black uppercase tracking-widest px-6 py-2.5 rounded-lg transition-colors shadow-lg border border-slate-700 hover:border-sky-500 inline-block">
+                                        <div className="flex flex-col items-center animate-fadeIn">
+                                            <div className="w-14 h-14 bg-[#0D1117] rounded-full flex items-center justify-center mb-4 group-hover/dropzone:scale-110 transition-transform duration-300 border border-slate-800 shadow-inner">
+                                                <SafeIcon name="UploadCloud" size={24} className="text-slate-500 group-hover/dropzone:text-sky-400 transition-colors" />
+                                            </div>
+                                            <p className="text-xs font-bold text-slate-400 mb-5">Drag & Drop Documents Here</p>
+                                            <label className="cursor-pointer bg-[#0D1117] hover:bg-sky-600 text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl transition-all shadow-lg border border-slate-700 hover:border-sky-500 inline-block">
                                                 Select File
                                                 <input type="file" className="hidden" onChange={handleFileUpload} />
                                             </label>
-                                        </>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -381,32 +391,32 @@ export default function ProjectDocs() {
                             {/* Files List */}
                             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3 z-10 relative">
                                 {(!activeProject.files?.length) ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-600 opacity-50">
-                                        <SafeIcon name="FolderOpen" size={48} className="mb-3" />
-                                        <p className="text-xs font-black uppercase tracking-widest">Vault is Empty</p>
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-600 opacity-50 animate-fadeIn mt-[-10%]">
+                                        <SafeIcon name="FolderOpen" size={56} className="mb-4" />
+                                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Vault is Empty</p>
                                     </div>
                                 ) : (
                                     activeProject.files.map((file, idx) => (
-                                        <div key={file._id || idx} className="bg-[#1A2333]/90 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between group hover:border-sky-500/30 transition-all shadow-sm">
+                                        <div key={file._id || idx} className="bg-[#131B2B]/80 border border-slate-700/50 p-4 rounded-2xl flex items-center justify-between group hover:border-sky-500/40 transition-all shadow-sm hover:shadow-[0_0_15px_rgba(14,165,233,0.05)]">
                                             <div className="flex items-center gap-4 overflow-hidden">
-                                                <div className="w-10 h-10 rounded-lg bg-[#0D1117] border border-slate-800 flex items-center justify-center shrink-0">
+                                                <div className="w-11 h-11 rounded-xl bg-[#0D1117] border border-slate-700/80 flex items-center justify-center shrink-0 shadow-inner group-hover:bg-sky-900/20 transition-colors">
                                                     {getFileIcon(file.mimetype)}
                                                 </div>
                                                 <div className="overflow-hidden">
-                                                    <p className="text-sm font-bold text-white truncate" title={file.originalName}>{file.originalName}</p>
-                                                    <div className="flex items-center gap-3 mt-1">
-                                                        <span className="text-[9px] font-mono text-slate-500">{formatBytes(file.size)}</span>
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 border-l border-slate-700 pl-3">
+                                                    <p className="text-sm font-bold text-slate-200 truncate group-hover:text-white transition-colors" title={file.originalName}>{file.originalName}</p>
+                                                    <div className="flex items-center gap-3 mt-1.5">
+                                                        <span className="text-[9px] font-mono font-bold text-slate-500">{formatBytes(file.size)}</span>
+                                                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 border-l border-slate-700 pl-3">
                                                             By {file.uploadedBy?.split(' ')[0] || 'System'}
                                                         </span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2 shrink-0">
+                                            <div className="flex gap-2 shrink-0 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <a 
                                                     href={`${API.defaults.baseURL}/projects/download/${file.filename}`} 
                                                     download={file.originalName} 
-                                                    className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-colors border border-sky-500/20" 
+                                                    className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-colors border border-sky-500/30" 
                                                     title="Download"
                                                     target="_blank"
                                                     rel="noreferrer"
@@ -416,7 +426,7 @@ export default function ProjectDocs() {
                                                 {isManager && (
                                                     <button 
                                                         onClick={() => handleDeleteFile(file._id)} 
-                                                        className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 flex items-center justify-center transition-colors border border-slate-700 hover:border-rose-500/30" 
+                                                        className="w-8 h-8 rounded-lg bg-slate-800/80 text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 flex items-center justify-center transition-colors border border-slate-700 hover:border-rose-500/30" 
                                                         title="Delete File"
                                                     >
                                                         <SafeIcon name="Trash2" size={14} />
@@ -443,16 +453,21 @@ function BlueprintCard({ title, icon, color = 'sky', items }) {
     const styles = COLOR_MAP[color] || COLOR_MAP.sky;
 
     return (
-        <div className="bg-[#0D1117] p-5 rounded-2xl border border-slate-800 shadow-inner hover:border-slate-600 transition-colors duration-300 flex flex-col h-full group">
-            <h4 className={`text-[10px] font-black uppercase tracking-widest ${styles.text} mb-3 flex items-center gap-2 border-b border-slate-800 pb-3`}>
-                <SafeIcon name={icon} size={14} className={`${styles.hover} transition-colors`} /> {title}
-            </h4>
-            <ul className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2 max-h-40">
+        <div className={`bg-[#131B2B]/60 p-6 rounded-3xl border border-slate-700/50 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group ${styles.shadow}`}>
+            <div className="flex items-center gap-3 mb-5 border-b border-slate-700/50 pb-4">
+                <div className={`w-8 h-8 rounded-lg ${styles.bg} ${styles.border} border flex items-center justify-center shadow-inner`}>
+                    <SafeIcon name={icon} size={14} className={`${styles.text}`} />
+                </div>
+                <h4 className={`text-[10px] font-black uppercase tracking-widest ${styles.text}`}>
+                    {title}
+                </h4>
+            </div>
+            <ul className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2 max-h-48">
                 {items.map((item, i) => {
                     const parts = item.split(':');
                     return (
-                        <li key={i} className="text-xs text-slate-300 flex items-start gap-2.5 leading-relaxed">
-                            <SafeIcon name="ChevronRight" size={12} className={`${styles.bullet} shrink-0 mt-0.5 opacity-70`} /> 
+                        <li key={i} className="text-xs text-slate-300 flex items-start gap-3 leading-relaxed">
+                            <SafeIcon name="ChevronRight" size={12} className={`${styles.bullet} shrink-0 mt-0.5 opacity-60`} /> 
                             <span>
                                 {parts.length > 1 ? <><strong className="text-white">{parts[0]}:</strong>{parts.slice(1).join(':')}</> : item}
                             </span>
@@ -465,16 +480,16 @@ function BlueprintCard({ title, icon, color = 'sky', items }) {
 }
 
 function MiniList({ title, items, color = 'sky' }) {
-    if (!items || items.length === 0) return null;
+    if (!items || !Array.isArray(items) || items.length === 0) return null;
     const styles = COLOR_MAP[color] || COLOR_MAP.sky;
 
     return (
-        <div className="bg-[#0D1117] p-4 rounded-xl border border-slate-800">
-            <h5 className={`text-[10px] font-black uppercase tracking-widest ${styles.text} mb-2 border-b border-slate-800 pb-2`}>{title}</h5>
-            <ul className="space-y-1.5">
+        <div className="bg-[#131B2B] p-5 rounded-2xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+            <h5 className={`text-[10px] font-black uppercase tracking-widest ${styles.text} mb-3 border-b border-slate-700 pb-2`}>{title}</h5>
+            <ul className="space-y-2">
                 {items.map((item, i) => (
-                    <li key={i} className="text-xs text-slate-300 flex items-start gap-2">
-                        <span className={`${styles.bullet} opacity-50`}>•</span> {item}
+                    <li key={i} className="text-xs text-slate-300 flex items-start gap-2.5 leading-snug">
+                        <span className={`${styles.bullet} opacity-60 font-black`}>›</span> {item}
                     </li>
                 ))}
             </ul>
