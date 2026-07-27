@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import * as Icons from 'lucide-react';
 import API from '../services/api'; 
 import '../App.css';
-import API from '../services/api';
 
 // ==========================================
 // 🛡️ CRASH PREVENTION: Safe Icon Wrapper
@@ -254,7 +253,7 @@ export default function TalentMatrix({ currentUserRole }) {
     // RENDER: MAIN TALENT GRID
     // ----------------------------------------------------
     return (
-        <div className="max-w-7xl mx-auto space-y-8 font-sans animate-fadeIn pb-16 relative z-10">
+        <div className="max-w-7xl mx-auto space-y-8 font-sans animate-fade-in pb-16 relative z-10">
             
             {/* Ambient Glow */}
             <div className="fixed top-[-10%] left-[-5%] w-[500px] h-[500px] bg-sky-600/10 rounded-full mix-blend-screen filter blur-[150px] opacity-50 pointer-events-none z-0"></div>

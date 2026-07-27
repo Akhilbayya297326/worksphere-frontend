@@ -4,7 +4,7 @@ import API from '../services/api';
 
 const AppContext = createContext();
 
-// 🚀 HARDCODED FOR VERCEL DEPLOYMENT (Removed local fallback)
+// 🚀 HARDCODED LIVE RENDER URL
 const BACKEND_URL = 'https://worksphere-backend-thoi.onrender.com';
 
 export const AppProvider = ({ children }) => {
@@ -21,15 +21,16 @@ export const AppProvider = ({ children }) => {
                     setChatMessages(data.messages);
                 }
             } catch (error) {
-                console.error("Failed to load global chat history");
+                console.error("Failed to load global chat history", error);
             }
         };
         fetchHistory();
 
-        // 2. Initialize WebSocket Connection using the Dynamic URL
+        // 2. Initialize WebSocket Connection with robust transport fallbacks
         const newSocket = io(BACKEND_URL, {
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
+            transports: ['websocket', 'polling']
         });
 
         setSocket(newSocket);
