@@ -4,7 +4,6 @@ import * as Icons from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import ReactFlow, { Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
-import API from '../services/api';
 
 // ==========================================
 // 🛡️ CRASH PREVENTION: Safe Icon Wrapper
@@ -943,4 +942,4 @@ function BlueprintSection({ title, icon, color, items }) {
             </ul>
         </div>
     );
-}
+}  

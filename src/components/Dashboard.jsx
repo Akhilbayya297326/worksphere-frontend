@@ -5,12 +5,12 @@ import API from '../services/api';
 import { 
   UploadCloud, BrainCircuit, Users, AlertTriangle, CheckCircle2, 
   Settings, LayoutDashboard, ChevronRight, FileText, 
-  Plus, Trash2, Image as ImageIcon, Check, GitBranch, TerminalSquare
+  Plus, Trash2, Image as ImageIcon, Check, GitBranch, TerminalSquare, CheckSquare
 } from 'lucide-react';
 import '../App.css';
 
-// 🚀 HARDCODED RENDER URL FOR SOCKET
-const socket = io('https://worksphere-backend-thoi.onrender.com');
+// 🚀 RAILWAY PRODUCTION URL FOR SOCKET
+const socket = io('https://worksphere-backend-production-e720.up.railway.app');
 
 export default function Dashboard({ currentUser }) {
   const [step, setStep] = useState(1);
@@ -83,8 +83,8 @@ export default function Dashboard({ currentUser }) {
         formData.append('image', projectFile);
         formData.append('title', projectTitle);
 
-        // 🚀 HARDCODED RENDER URL
-        const res = await axios.post('https://worksphere-backend-thoi.onrender.com/api/orchestration/vision-orchestrate', formData, {
+        // 🚀 RAILWAY PRODUCTION URL
+        const res = await axios.post('https://worksphere-backend-production-e720.up.railway.app/api/orchestration/vision-orchestrate', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
 
@@ -101,8 +101,8 @@ export default function Dashboard({ currentUser }) {
           text: `Initiative Name: ${projectTitle}. Reference File: ${projectFile.name}. Decompose this into technical tasks and shortlist the best available team.`,
           documentData: projectTitle
         };
-        // 🚀 HARDCODED RENDER URL
-        const res = await axios.post('https://worksphere-backend-thoi.onrender.com/api/analysis/analyze-doc', payload);
+        // 🚀 RAILWAY PRODUCTION URL
+        const res = await axios.post('https://worksphere-backend-production-e720.up.railway.app/api/analysis/analyze-doc', payload);
         
         setProjectData({
           title: projectTitle,
@@ -129,8 +129,8 @@ export default function Dashboard({ currentUser }) {
     try {
       const validRepos = repositories.filter(r => r.url.trim() !== '');
 
-      // 🚀 HARDCODED RENDER URL
-      await axios.post(`https://worksphere-backend-thoi.onrender.com/api/orchestration/dispatch`, {
+      // 🚀 RAILWAY PRODUCTION URL
+      await axios.post(`https://worksphere-backend-production-e720.up.railway.app/api/orchestration/dispatch`, {
         title: projectData.title,
         aiShortlistedTeam: projectData.aiShortlistedTeam,
         finalizedTasks: draftedTasks,

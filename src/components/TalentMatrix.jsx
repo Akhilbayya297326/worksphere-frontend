@@ -403,5 +403,5 @@ export default function TalentMatrix({ currentUserRole }) {
                 ))}
             </div>
         </div>
-    );
+    );  
 }

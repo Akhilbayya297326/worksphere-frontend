@@ -292,6 +292,6 @@ export default function ChatHub() {
                 </div>
 
             </div>
-        </div>
+        </div>  
     );
 }

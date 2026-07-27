@@ -4,8 +4,8 @@ import API from '../services/api';
 
 const AppContext = createContext();
 
-// 🚀 HARDCODED LIVE RENDER URL
-const BACKEND_URL = 'https://worksphere-backend-thoi.onrender.com';
+// 🚀 LIVE RAILWAY PRODUCTION URL
+const BACKEND_URL = 'https://worksphere-backend-production-e720.up.railway.app';
 
 export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);

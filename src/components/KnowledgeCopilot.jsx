@@ -35,8 +35,8 @@ export default function KnowledgeCopilot() {
     setQuery('');
 
     try {
-      // 🚀 HARDCODED RENDER URL
-      const res = await axios.post('https://worksphere-backend-thoi.onrender.com/api/knowledge/query', { query: textToSearch });
+      // 🚀 RAILWAY PRODUCTION URL
+      const res = await axios.post('https://worksphere-backend-production-e720.up.railway.app/api/knowledge/query', { query: textToSearch });
       const aiMsg = { 
         role: 'ai', 
         text: res.data.data.overview || res.data.data.technicalDetails || "Query processed successfully.", 

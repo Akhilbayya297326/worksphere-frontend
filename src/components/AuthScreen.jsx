@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import API from '../services/api';
 import { 
   ShieldCheck, Lock, Mail, AlertCircle, KeyRound, 
@@ -19,8 +18,8 @@ export default function AuthScreen({ onLogin }) {
     setIsLoading(true);
 
     try {
-      // 🚀 HARDCODED RENDER URL
-      const res = await axios.post('https://worksphere-backend-thoi.onrender.com/api/auth/login', { email, password });
+      // 🚀 Sends request directly to your live Railway backend via the API client
+      const res = await API.post('/auth/login', { email, password });
       if (res.data.success) {
         onLogin(res.data.user); 
       }

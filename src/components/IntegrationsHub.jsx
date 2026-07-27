@@ -16,10 +16,10 @@ export default function IntegrationsHub({ currentUser }) {
   useEffect(() => {
     const fetchOmniData = async () => {
       try {
-        // 🚀 HARDCODED RENDER URL
+        // 🚀 RAILWAY PRODUCTION URL
         const [feedRes, linksRes] = await Promise.all([
-          axios.get('https://worksphere-backend-thoi.onrender.com/api/integrations/omni-feed'),
-          axios.get('https://worksphere-backend-thoi.onrender.com/api/integrations/links')
+          axios.get('https://worksphere-backend-production-e720.up.railway.app/api/integrations/omni-feed'),
+          axios.get('https://worksphere-backend-production-e720.up.railway.app/api/integrations/links')
         ]);
         
         if (feedRes.data.success) setOmniFeed(feedRes.data.omniFeed);

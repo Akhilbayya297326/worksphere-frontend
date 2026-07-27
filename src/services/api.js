@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// 🚀 HARDCODED FOR VERCEL DEPLOYMENT (Removed local fallback)
-const BACKEND_URL = 'https://worksphere-backend-thoi.onrender.com';
+// 🚀 LIVE RAILWAY PRODUCTION URL
+const BACKEND_URL = 'https://worksphere-backend-production-e720.up.railway.app';
 
 // Create a centralized Axios instance
 const API = axios.create({
@@ -11,8 +11,7 @@ const API = axios.create({
     }
 });
 
-
-// Optional: Enterprise Interceptor for Authentication Tokens
+// Enterprise Interceptor for Authentication Tokens
 API.interceptors.request.use((req) => {
     const token = localStorage.getItem('auth_token');
     if (token) {

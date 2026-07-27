@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as Icons from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx'; 
 import API from '../services/api.js';
-import API from '../services/api';
 
 // ==========================================
 // 🛠 PURE HELPERS & CONFIG
@@ -415,7 +414,7 @@ export default function ProjectDocs() {
                                             </div>
                                             <div className="flex gap-2 shrink-0 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <a 
-                                                    href={`${API.defaults.baseURL}/projects/download/${file.filename}`} 
+                                                    href={`https://worksphere-backend-production-e720.up.railway.app/api/projects/download/${file.filename}`} 
                                                     download={file.originalName} 
                                                     className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-colors border border-sky-500/30" 
                                                     title="Download"
