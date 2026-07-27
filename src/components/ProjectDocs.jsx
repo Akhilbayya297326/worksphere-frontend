@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as Icons from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx'; 
 import API from '../services/api.js';
+import API from '../services/api';
 
 // ==========================================
 // 🛠 PURE HELPERS & CONFIG

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
+import API from '../services/api';
 import { 
   UploadCloud, BrainCircuit, Users, AlertTriangle, CheckCircle2, 
   Settings, LayoutDashboard, ChevronRight, FileText, 

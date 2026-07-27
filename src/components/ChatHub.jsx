@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import API from '../services/api';
 
 // ==========================================
 // 🛡️ CRASH PREVENTION: Safe Icon Wrapper

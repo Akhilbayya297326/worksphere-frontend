@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import API from '../services/api';
 import { 
   ShieldCheck, Lock, Mail, AlertCircle, KeyRound, 
   ChevronRight, BrainCircuit, Loader2, Sparkles, TerminalSquare 

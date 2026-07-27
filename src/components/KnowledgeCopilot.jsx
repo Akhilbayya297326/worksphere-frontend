@@ -6,6 +6,7 @@ import {
   CheckCircle2, AlertCircle, Loader2
 } from 'lucide-react';
 import '../App.css';
+import API from '../services/api';
 
 export default function KnowledgeCopilot() {
   const [query, setQuery] = useState('');
