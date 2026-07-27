@@ -43,8 +43,9 @@ export default function KnowledgeCopilot() {
         confidence: res.data.data.confidenceScore
       };
       setConversation(prev => [...prev, aiMsg]);
+      setIsTyping(false);
     } catch (error) {
-      console.error("Knowledge query failed - Using Hackathon Failsafe Data");
+      console.error("Knowledge query failed - Using Hackathon Failsafe Data", error);
       // 🚀 HACKATHON DEMO FAILSAFE: Realistic dummy data if API is offline
       setTimeout(() => {
         setConversation(prev => [...prev, {
@@ -55,8 +56,6 @@ export default function KnowledgeCopilot() {
         }]);
         setIsTyping(false);
       }, 1500);
-    } finally {
-      if (error === undefined) setIsTyping(false); // Only toggle if not handled by failsafe
     }
   };
 
