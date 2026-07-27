@@ -4,6 +4,9 @@ import API from '../services/api';
 
 const AppContext = createContext();
 
+// 🚀 HARDCODED FOR VERCEL DEPLOYMENT (Removed local fallback)
+const BACKEND_URL = 'https://worksphere-backend-thoi.onrender.com';
+
 export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [socket, setSocket] = useState(null);
@@ -23,8 +26,8 @@ export const AppProvider = ({ children }) => {
         };
         fetchHistory();
 
-        // 2. Initialize WebSocket Connection
-        const newSocket = io('http://localhost:5000', {
+        // 2. Initialize WebSocket Connection using the Dynamic URL
+        const newSocket = io(BACKEND_URL, {
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
         });
@@ -33,7 +36,11 @@ export const AppProvider = ({ children }) => {
 
         // Listen for incoming messages from ANY user or system trigger
         newSocket.on('receive_message', (msg) => {
-            setChatMessages((prev) => [...prev, msg]);
+            setChatMessages((prev) => {
+                // Prevent duplicate UI rendering if the sender already optimistically added it
+                if (prev.some(m => m.id === msg.id)) return prev;
+                return [...prev, msg];
+            });
         });
 
         return () => newSocket.disconnect();
