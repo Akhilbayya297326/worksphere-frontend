@@ -10,9 +10,11 @@ import ChatHub from './components/ChatHub';
 import KnowledgeCopilot from './components/KnowledgeCopilot';
 import TalentMatrix from './components/TalentMatrix';
 import ExecutiveROI from './components/ExecutiveROI';
+import { useApp } from './context/AppContext';
+import { getNavigationRole } from './services/roles';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser, setUser: setCurrentUser, isConnected } = useApp();
   const [currentView, setCurrentView] = useState('');
 
   const handleLogin = (user) => {
@@ -25,6 +27,7 @@ export default function App() {
   }
 
   // Enterprise Sidebar Navigation Setup
+  const navigationRole = getNavigationRole(currentUser.role);
   const navItems = [
     { id: 'Dashboard', label: 'AI Orchestration', icon: LayoutDashboard, roles: ['Manager'] },
     { id: 'UnifiedWorkspace', label: 'Unified Workspace', icon: Briefcase, roles: ['Manager', 'Developer', 'QA Tester'] },
@@ -52,31 +55,31 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-950 font-sans text-white overflow-hidden">
-      
+
       {/* LEFT SIDEBAR - Deep Charcoal & Dark Blue */}
       <div className="w-72 bg-[#0a0f1a] flex flex-col border-r border-blue-900/50 z-20 shadow-2xl relative shrink-0">
-        
+
         {/* Subtle Dark Blue Sidebar Glow */}
         <div className="absolute top-0 left-0 w-full h-32 bg-blue-900/20 filter blur-3xl pointer-events-none"></div>
 
         {/* Brand Identity */}
         <div className="p-6 border-b border-blue-900/40 relative z-10">
           <h1 className="text-2xl font-black text-white flex items-center tracking-tight">
-            <Brain className="w-7 h-7 mr-2 text-blue-500" /> 
+            <Brain className="w-7 h-7 mr-2 text-blue-500" />
             WorkSphere<span className="text-blue-500">.AI</span>
           </h1>
           <div className="flex items-center mt-3 bg-slate-900/50 w-max px-3 py-1 rounded-full border border-blue-900/30">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-2 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
-            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Network Live</p>
+            <span className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{isConnected ? 'Network Live' : 'Reconnecting'}</p>
           </div>
         </div>
 
         {/* Navigation Menu */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-2 relative z-10 custom-scrollbar">
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 px-3 mt-2">Core Modules</p>
-          
+
           {navItems.map((item) => {
-            if (!item.roles.includes(currentUser.role)) return null;
+            if (!item.roles.includes(navigationRole)) return null;
             const Icon = item.icon;
             const isActive = currentView === item.id;
 
@@ -85,8 +88,8 @@ export default function App() {
                 key={item.id}
                 onClick={() => setCurrentView(item.id)}
                 className={`w-full flex items-center space-x-3 px-4 py-3.5 rounded-xl font-bold transition-all duration-300 ${
-                  isActive 
-                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] border border-blue-500' 
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] border border-blue-500'
                     : 'text-slate-400 hover:bg-blue-900/40 hover:text-white border border-transparent'
                 }`}
               >
@@ -111,7 +114,7 @@ export default function App() {
             </div>
           </div>
           {/* Red Logout Button for Destructive Action */}
-          <button 
+          <button
             onClick={() => setCurrentUser(null)}
             className="p-2.5 text-slate-400 hover:text-white hover:bg-red-600 rounded-lg transition-colors border border-transparent hover:border-red-500 hover:shadow-[0_0_15px_rgba(220,38,38,0.5)]"
             title="Terminate Session"

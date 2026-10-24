@@ -1,33 +1,21 @@
 import axios from 'axios';
+import { resolveServiceUrls } from './config';
 
-// 🚀 LIVE RAILWAY PRODUCTION URL
-const BACKEND_URL = 'https://worksphere-backend-production-e720.up.railway.app';
-
-// Create a centralized Axios instance
-const API = axios.create({
-    baseURL: `${BACKEND_URL}/api`, 
-    headers: {
-        'Content-Type': 'application/json'
-    }
+const urls = resolveServiceUrls({
+    apiUrl: import.meta.env.VITE_API_URL,
+    socketUrl: import.meta.env.VITE_SOCKET_URL,
+    production: import.meta.env.PROD,
+    origin: window.location.origin,
 });
+export const API_BASE_URL = urls.apiBaseUrl;
+export const SOCKET_URL = urls.socketUrl;
 
-// Enterprise Interceptor for Authentication Tokens
+const API = axios.create({ baseURL: API_BASE_URL, timeout: 60000 });
+
 API.interceptors.request.use((req) => {
     const token = localStorage.getItem('auth_token');
-    if (token) {
-        req.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) req.headers.Authorization = `Bearer ${token}`;
     return req;
-}, (error) => {
-    return Promise.reject(error);
-});
-
-// Intercept responses to handle global errors
-API.interceptors.response.use((res) => res, (error) => {
-    if (error.response && error.response.status === 401) {
-        console.warn("Unauthorized access. Token may be expired.");
-    }
-    return Promise.reject(error);
 });
 
 export default API;

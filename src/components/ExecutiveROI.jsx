@@ -1,23 +1,22 @@
 import React from 'react';
-import { TrendingUp, Clock, Users, Layers, Activity, DollarSign, BrainCircuit, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, Clock, Users, Layers, DollarSign, BrainCircuit, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import '../App.css';
-import API from '../services/api';
 
 export default function ExecutiveROI() {
   return (
     <div className="space-y-8 text-white font-sans animate-fade-in pb-10">
-      
+
       {/* Header */}
       <div className="border-b border-blue-900/50 pb-5">
         <h2 className="text-3xl font-black text-white flex items-center tracking-tight">
           <TrendingUp className="w-8 h-8 mr-3 text-blue-500" /> Business Impact & ROI Analytics
         </h2>
-        <p className="text-slate-400 font-bold mt-2 text-lg">Measurable outcomes. Tangible impact. Built for Enterprise Scale.</p>
+        <p className="text-slate-400 font-bold mt-2 text-lg">Illustrative demonstration metrics. Live business measurements are not connected.</p>
       </div>
 
       {/* Top Metrics Grid - High Contrast Colors */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        
+
         {/* Positive Metric: Green */}
         <div className="bg-[#0f172a] p-6 rounded-2xl border border-slate-800 hover:border-emerald-500 interactive-card relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity"><DollarSign className="w-24 h-24 text-emerald-500"/></div>
@@ -64,7 +63,7 @@ export default function ExecutiveROI() {
 
       {/* Deep Dive Analysis Area */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
-        
+
         {/* Context Switching - REDUCED (Red) */}
         <div className="bg-[#0f172a] p-8 rounded-2xl border border-slate-800 shadow-xl interactive-card">
           <h3 className="text-2xl font-black mb-6 flex items-center text-white"><Users className="w-6 h-6 mr-3 text-red-500"/> Solving Tool Sprawl</h3>
