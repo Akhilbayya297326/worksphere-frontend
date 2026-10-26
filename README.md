@@ -4,7 +4,7 @@ React and Vite workspace UI for WorkSphere. It requires the separate [WorkSphere
 
 ## Run locally
 
-Use Node.js 22.12 or later. In this repository:
+Use Node.js 24. In this repository:
 
 ```sh
 npm ci
@@ -14,6 +14,8 @@ npm run dev
 Start the backend separately on port `5000`, then open the URL printed by Vite. Vite proxies `/api` and `/socket.io` to `http://127.0.0.1:5000`, including WebSocket traffic. The preview server uses the same proxy.
 
 ## Configure hosting
+
+For the Render backend and Vercel frontend, follow [DEPLOYMENT.md](DEPLOYMENT.md). The root `vercel.json` configures Vite, `npm ci`, `npm run build`, `dist`, and SPA routing. Leave Vercel's Root Directory empty. Set `VITE_API_URL` to the actual Render URL plus `/api`, and `VITE_SOCKET_URL` to the Render origin, before deploying.
 
 Production builds default to the existing Railway backend: API requests use `https://worksphere-backend-production-e720.up.railway.app/api` and Socket.IO uses the same backend origin, `https://worksphere-backend-production-e720.up.railway.app`. Local development uses Vite's `/api` and `/socket.io` proxies. These environment variables are optional; to use a different backend, copy `.env.example` to `.env.local` and set:
 
