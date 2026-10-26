@@ -1,121 +1,62 @@
 import React, { useState } from 'react';
+import { ArrowRight, Check, Eye, EyeOff, Layers3, Leaf, Loader2, ShieldCheck } from 'lucide-react';
 import API from '../services/api';
-import { ShieldCheck, Lock, Mail, AlertCircle, KeyRound, ChevronRight, Fingerprint } from 'lucide-react';
-import '../App.css';
+import { Button, Notice } from './ui';
 
 export default function AuthScreen({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
+  const [busy, setBusy] = useState(false);
+  const handleSubmit = async event => {
+    event.preventDefault();
+    if (busy) return;
+    setError(''); setBusy(true);
     try {
-      const res = await API.post('/auth/login', { email, password });
-      if (res.data.success && res.data.user) {
-        onLogin(res.data.user);
-      } else throw new Error(res.data.error || 'Authentication failed.');
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Authentication failed. Server unreachable.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fillDemoCredentials = () => {
-    setEmail('admin@worksphere.com');
-    setPassword('cisco2026');
+      const { data } = await API.post('/auth/login', { email: email.trim(), password });
+      if (!data.success || !data.user) throw new Error(data.error || 'Unable to sign in. Please check your details.');
+      onLogin(data.user);
+    } catch (failure) {
+      setError(failure.response?.data?.error || (failure.code === 'ERR_NETWORK' ? 'The workspace is unavailable. Please try again shortly.' : failure.message) || 'Unable to sign in.');
+    } finally { setBusy(false); }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center font-sans relative overflow-hidden text-white">
-
-      {/* Dark Theme Ambient Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-900 rounded-full mix-blend-screen filter blur-[120px] opacity-40 animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-emerald-900 rounded-full mix-blend-screen filter blur-[120px] opacity-20"></div>
-
-      {/* Main Charcoal Card */}
-      <div className="bg-slate-900/80 backdrop-blur-2xl w-full max-w-md p-10 rounded-3xl shadow-[0_0_50px_-12px_rgba(37,99,235,0.25)] relative z-10 border border-slate-800 animate-fade-in">
-
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-slate-950 border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)] mb-6">
-            <Fingerprint className="w-10 h-10 text-blue-500" />
-          </div>
-          <h1 className="text-4xl font-black text-white tracking-tight">WorkSphere<span className="text-blue-500">.AI</span></h1>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-3 flex items-center justify-center">
-            <ShieldCheck className="w-4 h-4 mr-1 text-emerald-500"/> Secured Enterprise Gateway
-          </p>
+    <div className="ws-auth">
+      <section className="ws-auth-left">
+        <div className="ws-brand"><span className="ws-logo"><Leaf size={29} strokeWidth={1.7} /></span>WorkSphere</div>
+        <div className="ws-auth-form">
+          <p className="ws-eyebrow">YOUR TEAM. ONE WORKSPACE.</p>
+          <h1>Welcome back.</h1>
+          <p>Sign in to your WorkSphere workspace.</p>
+          {error && <div style={{ marginBottom: 20 }}><Notice tone="error">{error}</Notice></div>}
+          <form onSubmit={handleSubmit}>
+            <label className="ws-field" htmlFor="email"><span className="ws-field-label">Work email</span><input id="email" type="email" autoComplete="username" placeholder="you@company.com" value={email} onChange={event => setEmail(event.target.value)} required disabled={busy} /></label>
+            <label className="ws-field" htmlFor="password"><span className="ws-field-label">Password</span><div className="ws-auth-password"><input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={event => setPassword(event.target.value)} required disabled={busy} /><button type="button" className="ws-icon-button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label>
+            <Button type="submit" disabled={busy} style={{ width: '100%', marginTop: 5, minHeight: 42 }}>{busy ? <><Loader2 size={16} className="ws-spin" />Signing in…</> : <>Sign in to workspace <ArrowRight size={16} /></>}</Button>
+          </form>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '25px 0 19px', color: '#a3afa7', fontSize: 10 }}><span style={{ height: 1, background: '#e1e7e2', flex: 1 }} />EXPLORING WORKSPHERE?<span style={{ height: 1, background: '#e1e7e2', flex: 1 }} /></div>
+          <Button variant="secondary" disabled={busy} style={{ width: '100%', minHeight: 40 }} onClick={() => { setEmail('admin@worksphere.com'); setPassword('cisco2026'); setError(''); }}>Use demo account details</Button>
+          <p style={{ fontSize: 10, textAlign: 'center', color: '#93a095', lineHeight: 1.8, margin: '12px 0 0' }}>The demo account must exist in your connected workspace.</p>
         </div>
-
-        <form onSubmit={handleLogin} className="space-y-6">
-          {error && (
-            <div className="bg-red-950/50 border border-red-500/50 p-4 rounded-xl flex items-center space-x-3 text-sm font-bold animate-fade-in text-red-200">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div className="group">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center transition-colors group-focus-within:text-blue-400">
-              Enterprise Email
-            </label>
-            <div className="relative">
-              <Mail className="w-5 h-5 absolute left-4 top-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-slate-950 border-2 border-slate-800 rounded-xl font-bold text-white text-base outline-none focus:border-blue-500 transition-all shadow-inner input-interactive"
-                placeholder="name@worksphere.com"
-                required
-              />
-            </div>
+        <footer className="ws-auth-footer"><span>© {new Date().getFullYear()} WorkSphere</span><span>A clearer way to work together.</span></footer>
+      </section>
+      <aside className="ws-auth-right" aria-label="About WorkSphere">
+        <span style={{ color: '#a2d1b0', letterSpacing: '1.5px', fontSize: 10, fontWeight: 600, marginBottom: 22 }}>LESS FRICTION. MORE PROGRESS.</span>
+        <h2>Bring your team.<br /><em>Move work forward.</em></h2>
+        <p>Projects, people, and knowledge in one considered workspace. Everything your team needs, with room to focus.</p>
+        <div className="ws-auth-preview" aria-label="Illustrative project board">
+          <div className="ws-auth-preview-title"><span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Layers3 size={14} />Product workspace</span><span className="ws-badge ws-badge-green"><span className="ws-status-dot" />In progress</span></div>
+          <div className="ws-preview-flow">
+            <div className="ws-preview-column"><strong>PLANNING</strong><div className="ws-preview-task">Outline requirements<div className="ws-preview-line" /></div><div className="ws-preview-task">Plan next sprint<div className="ws-preview-line" /></div></div>
+            <div className="ws-preview-column"><strong>IN PROGRESS</strong><div className="ws-preview-task">Build the experience<div className="ws-preview-line" /></div></div>
+            <div className="ws-preview-column"><strong>COMPLETED</strong><div className="ws-preview-task"><Check size={10} style={{ color: '#198651', display: 'inline', marginRight: 3 }} />Connect the team<div className="ws-preview-line" /></div></div>
           </div>
-
-          <div className="group">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center transition-colors group-focus-within:text-blue-400">
-              Passphrase
-            </label>
-            <div className="relative">
-              <Lock className="w-5 h-5 absolute left-4 top-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-slate-950 border-2 border-slate-800 rounded-xl font-bold text-white text-base outline-none focus:border-blue-500 transition-all shadow-inner input-interactive"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 text-white font-black text-base py-4 rounded-xl flex justify-center items-center hover:bg-blue-500 hover:shadow-[0_0_25px_rgba(37,99,235,0.4)] transition-all duration-300 mt-8 disabled:opacity-50 disabled:cursor-wait btn-press"
-          >
-            {isLoading ? (
-              <span className="flex items-center"><div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin mr-3"></div> AUTHENTICATING...</span>
-            ) : (
-              <span className="flex items-center"><KeyRound className="w-5 h-5 mr-3" /> INITIALIZE SESSION</span>
-            )}
-          </button>
-        </form>
-
-        <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-          <button
-            type="button"
-            onClick={fillDemoCredentials}
-            className="text-[11px] font-black text-slate-500 hover:text-emerald-400 uppercase tracking-widest transition-colors flex items-center justify-center mx-auto"
-          >
-            Load Hackathon Credentials <ChevronRight className="w-4 h-4 ml-1" />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 16, color: '#819589', fontSize: 9 }}><span style={{ display: 'inline-flex', gap: 3 }}>{['A', 'P', 'S'].map(initial => <span key={initial} style={{ width: 19, height: 19, borderRadius: '50%', background: '#e5f0e7', color: '#5f866a', display: 'grid', placeItems: 'center', fontSize: 8 }}>{initial}</span>)}</span>Your team, working together<span style={{ marginLeft: 'auto' }}>Illustrative workspace</span></div>
         </div>
-      </div>
+        <div className="ws-auth-note"><ShieldCheck size={17} /><span>One home for projects, people, and shared knowledge.</span></div>
+      </aside>
     </div>
   );
 }

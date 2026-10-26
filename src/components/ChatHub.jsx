@@ -1,233 +1,93 @@
-import React, { useState, useEffect, useRef } from 'react';
-import * as Icons from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Hash, MessageSquare, Search, Send, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { Badge, Button, Card, EmptyState, Notice, PageHeader } from './ui';
 
-const SafeIcon = ({ name, fallback = 'Circle', ...props }) => {
-    const IconComponent = Icons[name] || Icons[fallback] || Icons.Circle;
-    return IconComponent ? <IconComponent {...props} /> : <span className="inline-block w-4 h-4 bg-slate-500 rounded-full"></span>;
+const channels = [
+  { id: 'global-orchestration', name: 'General', description: 'Project updates and team announcements' },
+  { id: 'engineering', name: 'Engineering', description: 'Implementation, questions, and code reviews' },
+  { id: 'qa-alerts', name: 'Quality & security', description: 'Testing updates and security conversations' },
+];
+const templates = ['Can someone review the latest change?', 'A quick update on my current work:', 'I could use some help with:'];
+const messageTime = timestamp => {
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 export default function ChatHub() {
-    const { user, chatMessages, chatError, isConnected, addChatMessage } = useApp();
-    const [isSending, setIsSending] = useState(false);
-    const [newMessage, setNewMessage] = useState('');
-    const [activeChannel, setActiveChannel] = useState('global-orchestration');
-    const messagesEndRef = useRef(null);
+  const { user, chatMessages, chatError, isConnected, addChatMessage } = useApp();
+  const [activeChannel, setActiveChannel] = useState(channels[0].id);
+  const [drafts, setDrafts] = useState({});
+  const [search, setSearch] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const sendingRef = useRef(false);
+  const bottomRef = useRef(null);
+  const composerRef = useRef(null);
+  const channel = channels.find(item => item.id === activeChannel);
+  const draft = drafts[activeChannel] || '';
+  const setDraft = text => setDrafts(previous => ({ ...previous, [activeChannel]: text }));
+  const channelMessages = chatMessages.filter(message => message.channel === activeChannel || message.urgent || !message.channel);
+  const visibleMessages = channelMessages.filter(message => `${message.author || ''} ${message.text || ''}`.toLowerCase().includes(search.toLowerCase()));
 
-    // 🚀 Auto-scroll to the newest message
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatMessages, activeChannel]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [chatMessages, activeChannel]);
 
-    const handleSendMessage = async (e, overrideText = null) => {
-        if (e) e.preventDefault();
-        if (isSending || !isConnected) return;
-        const textToSend = overrideText || newMessage;
-        if (!textToSend.trim()) return;
+  const sendMessage = async event => {
+    event?.preventDefault();
+    if (sendingRef.current || !isConnected || !draft.trim()) return;
+    sendingRef.current = true;
+    setIsSending(true);
+    setSendError('');
+    const sentText = draft;
+    const sentChannel = activeChannel;
+    try {
+      const sent = await addChatMessage({ author: user?.name || 'Staff', role: user?.role || 'Staff', isBot: false, text: sentText.trim(), channel: sentChannel, urgent: false });
+      if (sent) setDrafts(previous => ({ ...previous, [sentChannel]: previous[sentChannel] === sentText ? '' : previous[sentChannel] }));
+    } catch { setSendError('Your message could not be sent. Your draft has been kept.'); }
+    finally { sendingRef.current = false; setIsSending(false); }
+  };
 
-        setIsSending(true);
-        const sent = await addChatMessage({
-            author: user?.name || 'Unknown User',
-            role: user?.role || 'Staff',
-            isBot: false,
-            text: textToSend.trim(),
-            channel: activeChannel,
-            urgent: false
-        });
-
-        if (sent && !overrideText) setNewMessage(previous => previous === textToSend ? '' : previous);
-        setIsSending(false);
-    };
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage(e);
-        }
-    };
-
-    const channels = [
-        { id: 'global-orchestration', name: 'Global Orchestration', icon: 'Globe' },
-        { id: 'engineering', name: 'Engineering Hive', icon: 'TerminalSquare' },
-        { id: 'qa-alerts', name: 'QA & Security Alerts', icon: 'ShieldAlert' },
-    ];
-
-    // Dummy "Quick Actions" showing what employees usually send
-    const quickActions = [
-        "🚀 Pushed latest frontend build to Staging.",
-        "🛡️ Requesting Code Review on my latest PR.",
-        "⚠️ Experiencing DB latency, is anyone else seeing this?",
-        "✅ UI Bug #402 resolved and verified."
-    ];
-
-    const visibleMessages = chatMessages.filter(msg =>
-        msg.channel === activeChannel || msg.urgent === true || msg.channel === undefined
-    );
-
-    return (
-        <div className="max-w-7xl mx-auto h-[85vh] animate-fadeIn font-sans text-slate-200 flex flex-col md:flex-row gap-6">
-
-            {/* LEFT SIDEBAR: Channels */}
-            <div className="w-full md:w-72 bg-[#0D1117] border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col shrink-0 relative overflow-hidden">
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none"></div>
-                <div className="mb-8 relative z-10">
-                    <h2 className="text-xl font-black text-white flex items-center gap-3 tracking-tight border-b border-slate-800 pb-4">
-                        <SafeIcon name="MessageSquare" className="text-sky-500" /> Comm-Link
-                    </h2>
-                </div>
-
-                <div className="space-y-1 flex-1 relative z-10">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-3 mb-3">Enterprise Channels</p>
-                    {channels.map(channel => (
-                        <button
-                            key={channel.id}
-                            onClick={() => setActiveChannel(channel.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                                activeChannel === channel.id
-                                    ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20 shadow-inner'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
-                            }`}
-                        >
-                            <SafeIcon name={channel.icon} size={16} />
-                            # {channel.name}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="mt-auto pt-6 border-t border-slate-800 relative z-10">
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl flex items-center gap-3">
-                        <div className="relative">
-                            <SafeIcon name="Radio" className="text-emerald-500 animate-pulse" size={20} />
-                            <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
-                        </div>
-                        <div>
-                            <p className="text-xs font-black text-emerald-400 uppercase tracking-widest">{isConnected ? 'Chat Connected' : 'Reconnecting'}</p>
-                            <p className="text-[10px] text-emerald-500/70 font-mono mt-0.5">Server-confirmed delivery</p>
-                        </div>
-                    </div>
-                </div>
+  return (
+    <div className="space-y-5">
+      <PageHeader eyebrow="COLLABORATION" title="Team chat" description="Keep project conversations in one place." actions={<Badge tone={isConnected ? 'green' : 'amber'} dot>{isConnected ? 'Connected' : 'Reconnecting'}</Badge>} />
+      <Card className="overflow-hidden !p-0">
+        <div className="flex min-h-[580px] h-[calc(100vh-235px)] max-h-[850px] flex-col md:flex-row">
+          <aside className="w-full shrink-0 border-b border-slate-200 bg-slate-50/60 p-4 md:w-56 md:border-b-0 md:border-r">
+            <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Channels</p>
+            <nav aria-label="Chat channels" className="flex gap-1 overflow-x-auto md:flex-col">
+              {channels.map(item => {
+                const count = chatMessages.filter(message => message.channel === item.id).length;
+                return <button key={item.id} type="button" onClick={() => { setActiveChannel(item.id); setSearch(''); setSendError(''); }} aria-current={activeChannel === item.id ? 'page' : undefined} className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-2.5 text-left text-[13px] transition-colors ${activeChannel === item.id ? 'bg-emerald-50 font-semibold text-emerald-800' : 'text-slate-600 hover:bg-slate-100'}`}><Hash size={15} /><span className="flex-1">{item.name}</span>{count > 0 && <span className="text-[11px] text-slate-400">{count}</span>}</button>;
+              })}
+            </nav>
+            <div className="mt-6 hidden rounded-md border border-slate-200 bg-white p-3 md:block"><p className="text-xs font-medium text-slate-700">A shared workspace</p><p className="mt-1 text-xs leading-5 text-slate-500">Messages appear after the server confirms delivery.</p></div>
+          </aside>
+          <section className="flex min-w-0 flex-1 flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <div><h2 className="text-sm font-semibold text-slate-900"># {channel.name}</h2><p className="mt-1 text-xs text-slate-500">{channel.description}</p></div>
+              <div className="relative w-full sm:w-56"><Search size={15} className="pointer-events-none absolute left-3 top-2.5 text-slate-400" /><input aria-label="Search channel messages" placeholder="Search messages" value={search} onChange={event => setSearch(event.target.value)} className="w-full !pl-9 !pr-8 text-xs" />{search && <button type="button" aria-label="Clear message search" className="absolute right-2 top-2 text-slate-400" onClick={() => setSearch('')}><X size={15} /></button>}</div>
             </div>
-
-            {/* MAIN CHAT AREA */}
-            <div className="flex-1 bg-[#131B2B]/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl flex flex-col relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/5 rounded-full blur-[100px] pointer-events-none"></div>
-
-                {/* Chat Header */}
-                <div className="p-6 border-b border-slate-700/50 flex justify-between items-center bg-[#0D1117]/50 relative z-10 shrink-0">
-                    <div>
-                        <h3 className="text-lg font-black text-white flex items-center gap-2">
-                            <span className="text-slate-500">#</span> {channels.find(c => c.id === activeChannel)?.name}
-                        </h3>
-                        <p className="text-xs text-slate-400 font-medium mt-1">Enterprise-wide collaboration and automated system provenance tracking.</p>
-                    </div>
-                    <div className="flex items-center -space-x-2">
-                        {['B','S','R','A'].map((ltr, i) => <div key={i} className="w-8 h-8 rounded-full bg-slate-800 border-2 border-[#131B2B] flex items-center justify-center text-[10px] font-black text-slate-300">{ltr}</div>)}
-                    </div>
-                </div>
-
-                {/* Messages Feed */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar relative z-10">
-                    {visibleMessages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center opacity-50">
-                            <SafeIcon name="DatabaseBackup" size={48} className="text-slate-500 mb-4" />
-                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Vault Initialized</p>
-                            <p className="text-xs text-slate-500 mt-2">Chat history will permanently persist here.</p>
-                        </div>
-                    ) : (
-                        visibleMessages.map((msg, idx) => {
-                            const isMe = msg.author === user?.name && !msg.isBot;
-
-                            // 🤖 SYSTEM / BOT MESSAGE RENDER
-                            if (msg.isBot || msg.role === 'System Intelligence') {
-                                return (
-                                    <div key={msg._id || msg.id || idx} className="flex justify-center my-6">
-                                        <div className={`max-w-2xl w-full p-4 rounded-2xl border flex gap-4 shadow-lg ${msg.urgent ? 'bg-rose-500/10 border-rose-500/30' : 'bg-indigo-500/10 border-indigo-500/30'}`}>
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${msg.urgent ? 'bg-rose-500/20 text-rose-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
-                                                <SafeIcon name={msg.urgent ? 'AlertOctagon' : 'Cpu'} size={20} />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className={`text-[10px] font-black uppercase tracking-widest ${msg.urgent ? 'text-rose-400' : 'text-indigo-400'}`}>{msg.author || 'System'}</span>
-                                                    <span className="text-[9px] font-mono text-slate-500">{msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Live'}</span>
-                                                </div>
-                                                <p className="text-sm text-slate-200 leading-relaxed font-mono whitespace-pre-wrap">{msg.text}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            }
-
-                            // 👤 HUMAN MESSAGE RENDER
-                            return (
-                                <div key={msg._id || msg.id || idx} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`flex gap-4 max-w-[80%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-black text-sm border shadow-sm ${isMe ? 'bg-sky-600 text-white border-sky-500' : 'bg-slate-800 text-slate-300 border-slate-700'}`}>
-                                            {msg.author ? msg.author.charAt(0).toUpperCase() : 'U'}
-                                        </div>
-                                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                            <div className={`flex items-center gap-2 mb-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                                                <span className="text-xs font-bold text-slate-300">{isMe ? 'You' : msg.author}</span>
-                                                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${isMe ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>{msg.role}</span>
-                                                <span className="text-[9px] font-mono text-slate-500">{msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</span>
-                                            </div>
-                                            <div className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${isMe ? 'bg-sky-600 text-white rounded-tr-sm' : 'bg-[#1A2333] text-slate-200 border border-slate-700/50 rounded-tl-sm'}`}>
-                                                {msg.text}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input Area & Quick Prompts */}
-                <div className="p-6 bg-[#0D1117] border-t border-slate-800 relative z-10 shrink-0">
-                    {chatError && <p role="alert" className="text-sm text-rose-400 mb-3">{chatError}</p>}
-
-                    {/* 🚀 QUICK ACTIONS (DUMMY PROMPTS) */}
-                    <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-4 pb-1">
-                        {quickActions.map((action, i) => (
-                            <button
-                                key={i}
-                                onClick={() => handleSendMessage(null, action)}
-                                disabled={isSending || !isConnected}
-                                className="whitespace-nowrap px-3 py-1.5 bg-slate-800 hover:bg-sky-500/20 text-slate-300 hover:text-sky-300 border border-slate-700 hover:border-sky-500/30 rounded-lg text-[10px] font-bold transition-all shadow-sm"
-                            >
-                                {action}
-                            </button>
-                        ))}
-                    </div>
-
-                    <form onSubmit={(e) => handleSendMessage(e, null)} className="relative flex items-end gap-3">
-                        <button type="button" className="p-3.5 text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all border border-transparent hover:border-sky-500/30 shrink-0">
-                            <SafeIcon name="PlusCircle" size={20} />
-                        </button>
-
-                        <div className="flex-1 relative">
-                            <textarea
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder={`Message #${channels.find(c => c.id === activeChannel)?.name}...`}
-                                className="w-full bg-[#131B2B] text-slate-200 text-sm p-4 pr-12 rounded-2xl border border-slate-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all resize-none custom-scrollbar"
-                                rows="1"
-                                style={{ minHeight: '56px', maxHeight: '150px' }}
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={!newMessage.trim() || isSending || !isConnected}
-                            className="p-3.5 bg-sky-600 text-white rounded-xl hover:bg-sky-500 transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(14,165,233,0.3)] shrink-0 flex items-center justify-center"
-                        >
-                            <SafeIcon name="Send" size={20} className="ml-1" />
-                        </button>
-                    </form>
-                </div>
-
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5" role="log" aria-label={`${channel.name} messages`} aria-live="polite">
+              {!visibleMessages.length ? <EmptyState icon={MessageSquare} title={search ? 'No matching messages' : 'Start the conversation'} description={search ? 'Try a different name or keyword.' : `Share an update or ask your team a question in ${channel.name.toLowerCase()}.`} /> : <div className="space-y-6">{visibleMessages.map((message, index) => {
+                const system = message.isBot || message.role === 'System Intelligence';
+                const mine = message.author === user?.name && !system;
+                return <article key={message._id || message.id || index} className={`flex gap-3 ${system ? 'rounded-lg border border-slate-200 bg-slate-50 p-3' : ''}`}>
+                  <div aria-hidden="true" className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold ${mine ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>{system ? <MessageSquare size={15} /> : (message.author || 'S').charAt(0).toUpperCase()}</div>
+                  <div className="min-w-0 flex-1"><div className="mb-1 flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-slate-800">{message.author || 'System'}{mine ? ' (you)' : ''}</span><span className="text-[11px] text-slate-400">{messageTime(message.timestamp)}</span>{system && <Badge tone="neutral">System</Badge>}{message.urgent && <Badge tone="red">Urgent</Badge>}</div><p className="whitespace-pre-wrap break-words text-[13px] leading-6 text-slate-600">{message.text}</p></div>
+                </article>;
+              })}</div>}
+              <div ref={bottomRef} />
             </div>
+            <div className="space-y-3 border-t border-slate-200 p-4">
+              {(sendError || chatError) && <Notice tone="error">{sendError || chatError}</Notice>}
+              {!isConnected && <p className="text-xs text-amber-700">Waiting for a connection. You can keep writing your draft.</p>}
+              <div className="flex flex-wrap gap-2">{templates.map(template => <button type="button" key={template} onClick={() => { setDraft(template); composerRef.current?.focus(); }} className="rounded-md border border-slate-200 px-2.5 py-1 text-[11px] text-slate-500 hover:bg-slate-50">{template}</button>)}</div>
+              <form onSubmit={sendMessage} className="flex items-end gap-3"><textarea ref={composerRef} aria-label={`Message ${channel.name}`} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) sendMessage(event); }} maxLength={10000} rows={2} placeholder={`Message #${channel.name.toLowerCase()}…`} className="min-w-0 flex-1 resize-none text-[13px]" /><Button type="submit" icon={Send} disabled={!draft.trim() || !isConnected || isSending}>{isSending ? 'Sending…' : 'Send'}</Button></form>
+              <p className="text-[11px] text-slate-400">Enter to send · Shift + Enter for a new line</p>
+            </div>
+          </section>
         </div>
-    );
+      </Card>
+    </div>
+  );
 }

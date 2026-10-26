@@ -1,444 +1,296 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronDown, FileText,
+  GitBranch, Image as ImageIcon, Layers, Loader2, Plus, Radio, Sparkles,
+  Trash2, UploadCloud, Users, X,
+} from 'lucide-react';
 import API from '../services/api';
 import { useApp } from '../context/AppContext';
-import {
-  UploadCloud, BrainCircuit, Users, AlertTriangle, CheckCircle2,
-  CheckSquare, Settings, LayoutDashboard, ChevronRight, FileText,
-  Plus, Trash2, Image as ImageIcon
-} from 'lucide-react';
-import '../App.css';
+import { Badge, Button, Card, Modal, Notice, PageHeader } from './ui';
 
-export default function Dashboard() {
+const imageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif'];
+const repositoryTypes = ['Frontend', 'Backend', 'Fullstack', 'Microservice', 'Other'];
+const errorMessage = (error, fallback) => error.response?.data?.error || error.message || fallback;
+
+export default function Dashboard({ onOpenProject }) {
   const { socket } = useApp();
-  const [step, setStep] = useState(1);
-  const [mode, setMode] = useState('vision'); // 'vision' (Whiteboard Image) or 'document' (SRS Text)
-
+  const [stage, setStage] = useState('source');
+  const [mode, setMode] = useState('vision');
   const [projectTitle, setProjectTitle] = useState('');
   const [projectFile, setProjectFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-
+  const [imagePreview, setImagePreview] = useState('');
   const [projectData, setProjectData] = useState(null);
-  const [draftedTasks, setDraftedTasks] = useState([]);
+  const [createdProject, setCreatedProject] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [repositories, setRepositories] = useState([{ repoType: 'Frontend', url: '' }, { repoType: 'Backend', url: '' }]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [showSimulation, setShowSimulation] = useState(false);
+  const fileInput = useRef(null);
+  const operation = useRef(false);
 
-  // 🚀 DYNAMIC REPOSITORY MANAGEMENT
-  const [repositories, setRepositories] = useState([
-    { repoType: 'Frontend', url: '' },
-    { repoType: 'Backend', url: '' }
-  ]);
+  useEffect(() => {
+    if (!projectFile || !projectFile.type.startsWith('image/')) { setImagePreview(''); return; }
+    const url = URL.createObjectURL(projectFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [projectFile]);
 
-  const addRepositoryField = () => setRepositories([...repositories, { repoType: 'Microservice', url: '' }]);
-  const removeRepositoryField = (index) => setRepositories(repositories.filter((_, i) => i !== index));
-  const updateRepository = (index, field, value) => {
-    const updated = [...repositories];
-    updated[index][field] = value;
-    setRepositories(updated);
-  };
-
-  // 🖼️ HANDLE FILE UPLOAD & PREVIEW
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const selectFile = (file) => {
     if (!file) return;
-    setProjectFile(file);
-
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result);
-      reader.readAsDataURL(file);
-    } else {
-      setImagePreview(null);
+    setError('');
+    if (mode === 'vision' && !imageTypes.includes(file.type)) {
+      setError('Choose a PNG, JPEG, WebP, HEIC, or HEIF image.');
+      return;
     }
+    if (mode === 'document' && !/\.(txt|json|md)$/i.test(file.name)) {
+      setError('Choose a text, Markdown, or JSON document. Export PDF and Word documents as text first.');
+      return;
+    }
+    if (file.size > (mode === 'vision' ? 10 * 1024 * 1024 : 1024 * 1024)) {
+      setError(mode === 'vision' ? 'Images must be 10 MB or smaller.' : 'Text documents must be 1 MB or smaller.');
+      return;
+    }
+    setProjectFile(file);
   };
 
-  // 🔄 SWITCH MODE (Vision vs Document)
-  const handleModeSwitch = (newMode) => {
-    setMode(newMode);
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
     setProjectFile(null);
-    setImagePreview(null);
+    setError('');
+    if (fileInput.current) fileInput.current.value = '';
   };
 
-  // STEP 1 -> 2: Upload File & Trigger AI Orchestration
-  const handleOrchestrationSubmit = async (e) => {
-    e.preventDefault();
-    if (!projectFile || !projectTitle.trim()) return alert("Please provide both an Initiative Title and a File.");
-
-    setStep(2);
+  const analyzeProject = async (event) => {
+    event.preventDefault();
+    if (operation.current) return;
+    if (!projectTitle.trim() || !projectFile) { setError('Enter a project name and choose a requirements file.'); return; }
+    operation.current = true;
     setIsProcessing(true);
-
+    setError('');
+    setNotice('');
     try {
+      let response;
       if (mode === 'vision') {
-        const formData = new FormData();
-        formData.append('image', projectFile);
-        formData.append('title', projectTitle);
-
-        const res = await API.post('/orchestration/vision-orchestrate', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-
-        if (!res.data.success) throw new Error(res.data.error || 'Image analysis failed.');
-        if (res.data.success) {
-          setProjectData({
-            title: res.data.projectTitle,
-            aiShortlistedTeam: res.data.shortlistedTeam || []
-          });
-          setDraftedTasks((res.data.draftedTasks || []).map(t => ({ ...t, assignedTo: '' })));
-          setStep(3);
-        }
+        const payload = new FormData();
+        payload.append('image', projectFile);
+        payload.append('title', projectTitle.trim());
+        response = await API.post('/orchestration/vision-orchestrate', payload);
       } else {
-        if (!/\.(txt|json|md)$/i.test(projectFile.name)) throw new Error('Document analysis supports text, Markdown and JSON files. Export this document as text first.');
-        const documentText = await projectFile.text();
-        if (!documentText.trim()) throw new Error('The selected document is empty.');
-        const payload = {
-          text: `Initiative Name: ${projectTitle}\n\n${documentText}`,
-        };
-        const res = await API.post('/analysis/analyze-doc', payload);
-        if (!res.data.success) throw new Error(res.data.error || 'Document analysis failed.');
-
-        setProjectData({
-          title: projectTitle,
-          aiShortlistedTeam: res.data.analysis?.aiShortlist || []
-        });
-        setDraftedTasks((res.data.tasks || res.data.analysis?.tasks || []).map(t => ({ ...t, assignedTo: '' })));
-        setStep(3);
+        const text = await projectFile.text();
+        if (!text.trim()) throw new Error('This document is empty. Choose a document containing your project requirements.');
+        const content = `Initiative Name: ${projectTitle.trim()}\n\n${text}`;
+        if (content.length > 100000) throw new Error('The document and project name must contain no more than 100,000 characters.');
+        response = await API.post('/analysis/analyze-doc', { text: content });
       }
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || err.message || 'AI Orchestration failed.');
-      setStep(1);
+      const { data } = response;
+      if (!data.success) throw new Error(data.error || 'The project could not be analyzed.');
+      const team = mode === 'vision' ? data.shortlistedTeam : data.analysis?.aiShortlist;
+      const draftedTasks = mode === 'vision' ? data.draftedTasks : data.tasks || data.analysis?.tasks;
+      if (!Array.isArray(draftedTasks) || !draftedTasks.length) throw new Error('No tasks were returned. Try a more detailed project brief.');
+      setProjectData({ title: data.projectTitle || projectTitle.trim(), aiShortlistedTeam: Array.isArray(team) ? team : [] });
+      setTasks(draftedTasks.map(task => ({ ...task, assignedTo: '', complexity: task.complexity || 'Medium' })));
+      setStage('review');
+    } catch (failure) {
+      setError(errorMessage(failure, 'Project analysis is unavailable. Please try again.'));
     } finally {
+      operation.current = false;
       setIsProcessing(false);
     }
   };
 
-  // STEP 3 -> 4: Manager Approves & Dispatches
-  const handleManagerConfirm = async () => {
-    if (isProcessing) return;
-    if (!draftedTasks.length) return alert('No tasks were generated. Analyze the project again before dispatching.');
-    if (draftedTasks.some(t => !t.assignedTo)) {
-      return alert("Manager Action Required: Assign all tasks using the dropdowns before dispatching.");
+  const updateTask = (index, changes) => setTasks(previous => previous.map((task, position) => position === index ? { ...task, ...changes } : task));
+  const updateRepository = (index, changes) => setRepositories(previous => previous.map((repository, position) => position === index ? { ...repository, ...changes } : repository));
+
+  const dispatchProject = async () => {
+    if (operation.current) return;
+    if (tasks.some(task => !task.assignedTo)) { setError('Assign an owner to every task before creating the project.'); return; }
+    const validRepositories = repositories.filter(repository => repository.url.trim());
+    for (const repository of validRepositories) {
+      try { if (!['http:', 'https:'].includes(new URL(repository.url).protocol)) throw new Error(); }
+      catch { setError('Repository links must be valid HTTP or HTTPS URLs.'); return; }
     }
-
+    operation.current = true;
     setIsProcessing(true);
+    setError('');
     try {
-      const validRepos = repositories.filter(r => r.url.trim() !== '');
-
       const { data } = await API.post('/orchestration/dispatch', {
         title: projectData.title,
         aiShortlistedTeam: projectData.aiShortlistedTeam,
-        finalizedTasks: draftedTasks,
-        repositories: validRepos
+        finalizedTasks: tasks,
+        repositories: validRepositories.map(repository => ({ ...repository, url: repository.url.trim() })),
       });
-
-      if (!data.success) throw new Error(data.error || 'Failed to dispatch project.');
+      if (!data.success) throw new Error(data.error || 'The project could not be created.');
+      setCreatedProject(data.project || null);
       socket?.emit('trigger_workspace_update');
-      setStep(4);
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || err.message || 'Failed to dispatch project.');
+      setStage('complete');
+    } catch (failure) {
+      setError(errorMessage(failure, 'The project could not be created. Your draft is still available.'));
     } finally {
+      operation.current = false;
       setIsProcessing(false);
     }
   };
 
-  const triggerChaosMonkey = () => {
-    if (!socket?.connected) return alert('The live connection is unavailable.');
-    if(window.confirm("WARNING: This will trigger a simulated SEV-1 hardware outage globally. Proceed?")) {
-      socket.emit('trigger_chaos_monkey');
-    }
+  const reset = () => {
+    setStage('source'); setProjectTitle(''); setProjectFile(null); setProjectData(null); setCreatedProject(null);
+    setTasks([]); setRepositories([{ repoType: 'Frontend', url: '' }, { repoType: 'Backend', url: '' }]);
+    setError(''); setNotice('');
   };
 
-  // UI Component: Progress Tracker
-  const StepIndicator = () => (
-    <div className="flex flex-wrap md:flex-nowrap items-center gap-2 mb-8 bg-[#0f172a] p-4 rounded-xl border border-slate-800">
-      <div className={`px-3 py-1 rounded-lg font-black text-xs ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-500'}`}>1. INPUT</div>
-      <ChevronRight className="w-4 h-4 text-slate-600 hidden md:block" />
-      <div className={`px-3 py-1 rounded-lg font-black text-xs ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-500'}`}>2. AI DECOMPOSITION</div>
-      <ChevronRight className="w-4 h-4 text-slate-600 hidden md:block" />
-      <div className={`px-3 py-1 rounded-lg font-black text-xs ${step >= 3 ? 'bg-amber-500 text-amber-950' : 'bg-slate-800 text-slate-500'}`}>3. ALLOCATION</div>
-      <ChevronRight className="w-4 h-4 text-slate-600 hidden md:block" />
-      <div className={`px-3 py-1 rounded-lg font-black text-xs ${step === 4 ? 'bg-emerald-500 text-emerald-950 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-800 text-slate-500'}`}>4. DISPATCH</div>
-    </div>
-  );
+  const simulateAlert = () => {
+    setShowSimulation(false);
+    if (!socket?.connected) { setError('Connect to the server before running an alert simulation.'); return; }
+    socket.emit('trigger_chaos_monkey');
+    setNotice('A simulated incident alert was sent to connected team members.');
+  };
+
+  const step = stage === 'source' ? 0 : stage === 'review' ? 1 : 2;
+  const unassigned = tasks.filter(task => !task.assignedTo).length;
 
   return (
-    <div className="space-y-8 font-sans animate-fade-in pb-10 max-w-7xl mx-auto text-slate-200">
+    <div className="ws-page space-y-6">
+      <PageHeader eyebrow="Project management" title="Project orchestration" description="Turn a project brief into a clear plan, with the right people assigned to each task."
+        actions={<Button variant="secondary" icon={Radio} onClick={() => setShowSimulation(true)}>Simulate alert</Button>} />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-blue-900/50 pb-5 gap-4">
-        <div>
-          <h2 className="text-3xl font-black text-white flex items-center tracking-tight">
-            <LayoutDashboard className="w-8 h-8 mr-3 text-blue-500" /> AI Project Orchestration
-          </h2>
-          <p className="text-slate-400 font-bold mt-1 text-sm">Multimodal "Vibe Coding" & Automated Initiative Dispatch.</p>
-        </div>
-        <button
-          onClick={triggerChaosMonkey}
-          className="bg-red-950/30 border border-red-500/50 text-red-500 font-black px-4 py-2.5 rounded-xl flex items-center hover:bg-red-600 hover:text-white transition-all shadow-[0_0_15px_rgba(239,68,68,0.15)] btn-press"
-        >
-          <AlertTriangle className="w-4 h-4 mr-2" /> CHAOS MONKEY
-        </button>
-      </div>
-
-      <StepIndicator />
-
-      {/* STEP 1: Upload Requirements */}
-      {step === 1 && (
-        <form onSubmit={handleOrchestrationSubmit} className="bg-[#0a0f1a] p-8 rounded-2xl shadow-xl border border-slate-800 space-y-6 relative overflow-hidden group">
-          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-blue-600 rounded-full mix-blend-screen filter blur-[120px] opacity-10 pointer-events-none transition-opacity duration-700"></div>
-
-          <div className="flex gap-4 border-b border-slate-800 pb-4 relative z-10">
-            <button
-              type="button"
-              onClick={() => handleModeSwitch('vision')}
-              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all ${mode === 'vision' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <ImageIcon size={16} /> Whiteboard Vision
-            </button>
-            <button
-              type="button"
-              onClick={() => handleModeSwitch('document')}
-              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all ${mode === 'document' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <FileText size={16} /> Document / SRS
-            </button>
-          </div>
-
-          <div className="space-y-3 relative z-10">
-            <label className="text-xs font-black text-blue-400 uppercase tracking-widest flex items-center">
-              <FileText className="w-4 h-4 mr-2"/> Initiative Name
-            </label>
-            <input
-              type="text"
-              placeholder={mode === 'vision' ? "e.g., Krishi Chakra AgTech Platform" : "e.g., Enterprise Platform Migration v2.0"}
-              value={projectTitle}
-              onChange={(e) => setProjectTitle(e.target.value)}
-              className="w-full bg-[#0f172a] border border-slate-700 p-4 rounded-xl font-bold text-white focus:border-blue-500 outline-none text-lg transition-all shadow-inner placeholder:text-slate-600"
-              required
-            />
-          </div>
-
-          {/* Multimodal Vision Dropzone */}
-          <div className="border-2 border-dashed border-slate-700/70 p-12 text-center rounded-2xl hover:border-sky-500 hover:bg-sky-900/10 transition-all cursor-pointer group/dropzone relative z-10">
-            {imagePreview ? (
-              <div className="flex flex-col items-center">
-                <img src={imagePreview} alt="Preview" className="max-h-48 rounded-xl border border-sky-500/50 mb-4 shadow-lg" />
-                <p className="text-xs text-sky-400 font-bold uppercase">{projectFile?.name}</p>
-              </div>
-            ) : (
-              <>
-                <UploadCloud className="w-16 h-16 mx-auto text-slate-600 group-hover/dropzone:text-sky-500 mb-4 transition-colors" />
-                <h3 className="text-xl font-black text-white mb-1 tracking-tight">
-                  {mode === 'vision' ? 'Drop Whiteboard Photo or Wireframe Sketch' : 'Upload SRS Specification File'}
-                </h3>
-                <p className="text-xs font-bold text-slate-500 mb-6">
-                  {mode === 'vision' ? 'Supports PNG, JPG, JPEG' : 'Supports TXT, Markdown, JSON'}
-                </p>
-              </>
-            )}
-            <input
-              type="file"
-              accept={mode === 'vision' ? "image/*" : ".txt,.json,.md"}
-              onChange={handleFileChange}
-              className="text-xs font-bold text-slate-400 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-sky-600 file:text-white hover:file:bg-sky-500 cursor-pointer transition-all"
-              required
-            />
-          </div>
-
-          {/* 🚀 Plain Text Repositories UI (No GitHub Icons) */}
-          <div className="pt-4 border-t border-slate-800 relative z-10">
-            <div className="flex justify-between items-center mb-4">
-              <label className="text-xs font-black uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
-                Bound Enterprise Repositories
-              </label>
-              <button
-                type="button"
-                onClick={addRepositoryField}
-                className="text-[10px] font-black uppercase text-sky-400 hover:text-sky-300 bg-sky-500/10 px-3 py-1.5 rounded-lg border border-sky-500/20 transition-all flex items-center gap-1"
-              >
-                <Plus size={14}/> Add Repo Link
-              </button>
-            </div>
-            <div className="space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-              {repositories.map((repo, idx) => (
-                <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-[#131B2B] p-3 rounded-xl border border-slate-800">
-                  <select
-                    value={repo.repoType}
-                    onChange={(e) => updateRepository(idx, 'repoType', e.target.value)}
-                    className="bg-[#0D1117] text-slate-300 text-xs font-bold p-2.5 rounded-lg border border-slate-700 outline-none w-full sm:w-40 shrink-0"
-                  >
-                    <option value="Frontend">Frontend</option>
-                    <option value="Backend">Backend</option>
-                    <option value="Fullstack">Fullstack</option>
-                    <option value="Microservice">Microservice</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  <input
-                    type="url"
-                    value={repo.url}
-                    onChange={(e) => updateRepository(idx, 'url', e.target.value)}
-                    placeholder="https://repo-url.com/..."
-                    className="flex-1 w-full bg-[#0D1117] text-white text-xs p-2.5 rounded-lg border border-slate-700 outline-none font-mono placeholder:text-slate-600"
-                  />
-                  {repositories.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRepositoryField(idx)}
-                      className="w-full sm:w-auto p-2.5 flex justify-center text-slate-500 hover:text-rose-400 bg-[#0D1117] hover:bg-rose-500/10 rounded-lg border border-slate-700 hover:border-rose-500/30 transition-colors shrink-0"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <button type="submit" disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl flex justify-center items-center transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)] text-xs tracking-widest uppercase disabled:opacity-50 relative z-10 mt-6 btn-press">
-            <BrainCircuit className="w-5 h-5 mr-3" />
-            {isProcessing ? 'PROCESSING AI ORCHESTRATION...' : `RUN ${mode === 'vision' ? 'VISION DECOMPOSITION' : 'DOCUMENT ANALYSIS'}`}
-          </button>
-        </form>
-      )}
-
-      {/* STEP 2: Processing */}
-      {step === 2 && (
-        <div className="p-24 text-center bg-[#0a0f1a] rounded-2xl border border-blue-900/50 shadow-xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-blue-900/10 animate-pulse pointer-events-none"></div>
-          <Settings className="w-20 h-20 mx-auto text-blue-500 animate-spin mb-6 relative z-10" />
-          <h3 className="text-3xl font-black text-white tracking-tight relative z-10">Analyzing Input Data...</h3>
-          <p className="text-slate-400 font-bold mt-2 text-sm relative z-10">
-            {mode === 'vision'
-              ? "Gemini Vision is parsing whiteboard nodes, UI layouts, and schema connections."
-              : "Gemini is extracting architectural requirements and matching technical talent."}
-          </p>
-        </div>
-      )}
-
-      {/* STEP 3: Task & Team Allocation */}
-      {step === 3 && projectData && (
-        <div className="space-y-8 animate-fade-in">
-
-          <div className="bg-[#0a0f1a] p-8 rounded-2xl border border-slate-800 shadow-xl">
-            <h3 className="text-xl font-black text-white mb-6 flex items-center border-b border-slate-800 pb-4">
-              <Users className="mr-3 text-sky-400"/> AI Shortlisted Talent Pool
-            </h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {projectData.aiShortlistedTeam.length > 0 ? projectData.aiShortlistedTeam.map((emp, i) => (
-                <div key={i} className="bg-[#0f172a] p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors flex flex-col justify-between">
-                  <div className="flex justify-between items-start mb-3">
-                    <h4 className="font-black text-white text-lg">{emp.name}</h4>
-                    <span className="text-[10px] bg-blue-900/30 text-blue-400 border border-blue-800/50 px-2.5 py-1 rounded-md font-black tracking-widest uppercase">{emp.role}</span>
-                  </div>
-                  <p className="text-xs font-semibold text-slate-400 leading-relaxed bg-slate-900/50 p-4 rounded-lg border border-slate-800/50 italic">
-                    "{emp.matchReason || emp.reason || "Recommended based on tech stack synergy and historical metrics."}"
-                  </p>
-                </div>
-              )) : (
-                <div className="col-span-2 text-center p-8 bg-slate-900/50 rounded-xl text-slate-500 font-bold border border-slate-800">
-                  No exact skill matches found in current active database.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-[#0a0f1a] p-8 rounded-2xl border border-slate-800 shadow-xl">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-slate-800 pb-4 gap-4">
-              <h3 className="text-xl font-black text-white flex items-center">
-                <CheckSquare className="mr-3 text-amber-500"/> Manager Task Allocation
-              </h3>
-              <span className="bg-amber-950/30 text-amber-500 text-xs px-3 py-1 rounded-full border border-amber-900/50 font-bold">
-                {draftedTasks.filter(t => !t.assignedTo).length} Tasks Need Assignment
+      <Card className="px-6 py-5">
+        <ol className="grid grid-cols-1 gap-5 sm:grid-cols-3" aria-label="Project creation progress">
+          {[
+            ['Project requirements', 'Upload a brief or a whiteboard'],
+            ['Review & assign', 'Check tasks and choose owners'],
+            ['Create project', 'Make the plan available to your team'],
+          ].map(([title, description], index) => (
+            <li key={title} className="flex items-center gap-3" aria-current={step === index ? 'step' : undefined}>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${step > index ? 'bg-emerald-100 text-emerald-800' : step === index ? 'bg-[#00684a] text-white' : 'bg-slate-100 text-slate-500'}`}>
+                {step > index ? <Check size={15} /> : index + 1}
               </span>
+              <div><p className={`text-sm font-semibold ${step === index ? 'text-slate-900' : 'text-slate-600'}`}>{title}</p><p className="mt-0.5 text-xs text-slate-500">{description}</p></div>
+            </li>
+          ))}
+        </ol>
+      </Card>
+
+      {error && <Notice tone="error">{error}</Notice>}
+      {notice && <Notice tone="success">{notice}</Notice>}
+
+      {stage === 'source' && (
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_290px]">
+          <Card>
+            <div className="border-b border-slate-200 px-6 py-5">
+              <h2 className="text-base font-semibold text-slate-900">Start with your requirements</h2>
+              <p className="mt-1 text-sm text-slate-500">Add a project name and the material your team will build from.</p>
             </div>
+            <form onSubmit={analyzeProject} className="space-y-6 p-6">
+              <div>
+                <label htmlFor="project-name" className="mb-2 block text-xs font-semibold text-slate-700">Project name <span className="text-red-500">*</span></label>
+                <input id="project-name" className="w-full" placeholder="e.g. Customer portal migration" value={projectTitle} maxLength={500} onChange={event => setProjectTitle(event.target.value)} disabled={isProcessing} required />
+              </div>
+              <fieldset>
+                <legend className="mb-3 text-xs font-semibold text-slate-700">Requirements source</legend>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: 'vision', label: 'Whiteboard image', detail: 'Diagrams, sketches, and wireframes', Icon: ImageIcon },
+                    { value: 'document', label: 'Project document', detail: 'Text briefs and specifications', Icon: FileText },
+                  ].map(({ value, label, detail, Icon }) => (
+                    <label key={value} className={`relative flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors focus-within:ring-2 focus-within:ring-emerald-200 ${mode === value ? 'border-[#00825a] bg-emerald-50/60' : 'border-slate-200 hover:border-slate-400'}`}>
+                      <input type="radio" name="source" className="sr-only" checked={mode === value} onChange={() => switchMode(value)} disabled={isProcessing} />
+                      <Icon size={19} className={`mt-0.5 shrink-0 ${mode === value ? 'text-[#00684a]' : 'text-slate-500'}`} />
+                      <span><span className="block text-sm font-medium text-slate-800">{label}</span><span className="mt-1 block text-xs leading-relaxed text-slate-500">{detail}</span></span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
-            <div className="space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-              {draftedTasks.map((task, idx) => {
-                const isAssigned = task.assignedTo !== '';
-                return (
-                  <div key={idx} className={`p-6 rounded-xl border-2 transition-colors flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 ${isAssigned ? 'bg-[#0f172a] border-emerald-900/30' : 'bg-slate-900/80 border-amber-900/50 border-dashed'}`}>
-
-                    <div className="flex-1 w-full">
-                      <input
-                        type="text"
-                        value={task.title}
-                        onChange={(e) => {
-                          const newTasks = [...draftedTasks];
-                          newTasks[idx].title = e.target.value;
-                          setDraftedTasks(newTasks);
-                        }}
-                        className="font-black text-xl text-white w-full bg-transparent border-b border-slate-700 focus:outline-none focus:border-amber-500 pb-2 transition-colors"
-                      />
-                      <p className="text-sm font-semibold text-slate-400 mt-3">{task.description}</p>
-
-                      <div className="flex items-center mt-4 space-x-3">
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${
-                          task.complexity === 'High' || task.complexity === 'Critical' ? 'bg-red-950/30 text-red-500 border-red-900/50' :
-                          task.complexity === 'Medium' ? 'bg-blue-950/30 text-blue-400 border-blue-900/50' :
-                          'bg-emerald-950/30 text-emerald-500 border-emerald-900/50'
-                        }`}>
-                          CMPLX: {task.complexity || 'Unknown'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className={`w-full xl:w-80 flex-shrink-0 p-5 rounded-xl border ${isAssigned ? 'bg-slate-950 border-emerald-900/50' : 'bg-amber-950/10 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.05)]'}`}>
-                      <label className={`text-[10px] font-black uppercase tracking-widest block mb-2 ${isAssigned ? 'text-emerald-500' : 'text-amber-500'}`}>
-                        {isAssigned ? '✓ Assigned To:' : '⚠️ Action Required:'}
-                      </label>
-                      <select
-                        className={`w-full p-3 border-2 rounded-lg font-bold text-white outline-none transition-colors appearance-none cursor-pointer ${isAssigned ? 'bg-slate-900 border-slate-700 focus:border-emerald-500' : 'bg-amber-950/20 border-amber-600/50 focus:border-amber-500'}`}
-                        value={task.assignedTo}
-                        onChange={(e) => {
-                          const newTasks = [...draftedTasks];
-                          newTasks[idx].assignedTo = e.target.value;
-                          setDraftedTasks(newTasks);
-                        }}
-                      >
-                        <option value="">-- Select Team Member --</option>
-                        {projectData.aiShortlistedTeam.map((emp, i) => (
-                          <option key={i} value={emp.name}>{emp.name} ({emp.role})</option>
-                        ))}
-                      </select>
-                    </div>
+              <div onDragOver={event => { event.preventDefault(); if (!isProcessing) setIsDragging(true); }} onDragLeave={() => setIsDragging(false)}
+                onDrop={event => { event.preventDefault(); setIsDragging(false); if (!isProcessing) selectFile(event.dataTransfer.files[0]); }}
+                className={`rounded-lg border border-dashed p-6 text-center transition-colors ${isDragging ? 'border-emerald-600 bg-emerald-50' : 'border-slate-300 bg-slate-50/50'}`}>
+                {projectFile ? (
+                  <div className="flex flex-col items-center gap-3">
+                    {imagePreview ? <img src={imagePreview} alt="Selected requirements" onError={() => setImagePreview('')} className="max-h-36 rounded border border-slate-200 object-contain" /> : <div className="rounded-lg border border-slate-200 bg-white p-3 text-[#00684a]"><FileText size={25} /></div>}
+                    <div><p className="text-sm font-medium text-slate-800">{projectFile.name}</p><p className="mt-1 text-xs text-slate-500">{(projectFile.size / 1024).toFixed(1)} KB · Ready to analyze</p></div>
+                    <Button type="button" variant="ghost" size="sm" icon={X} onClick={() => { setProjectFile(null); if (fileInput.current) fileInput.current.value = ''; }} disabled={isProcessing}>Remove file</Button>
                   </div>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={handleManagerConfirm}
-              disabled={isProcessing}
-              className="w-full mt-8 bg-emerald-600 text-white font-black py-4 rounded-xl hover:bg-emerald-500 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] btn-press text-sm tracking-widest flex justify-center items-center gap-2"
-            >
-              <CheckCircle2 className="w-5 h-5"/> CONFIRM ALLOCATIONS & DISPATCH TO WORKSPACE
-            </button>
+                ) : (
+                  <>
+                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#00684a]"><UploadCloud size={21} /></div>
+                    <p className="text-sm font-medium text-slate-800">Drag a file here, or browse your files</p>
+                    <p className="mb-4 mt-1.5 text-xs text-slate-500">{mode === 'vision' ? 'PNG, JPEG, WebP, HEIC or HEIF · Up to 10 MB' : 'TXT, Markdown or JSON · Up to 100,000 characters'}</p>
+                    <Button type="button" variant="secondary" size="sm" icon={Plus} onClick={() => fileInput.current?.click()} disabled={isProcessing}>Choose file</Button>
+                  </>
+                )}
+                <input ref={fileInput} id="requirements-file" aria-label="Requirements file" type="file" className="sr-only" accept={mode === 'vision' ? imageTypes.join(',') : '.txt,.json,.md'} onChange={event => selectFile(event.target.files[0])} disabled={isProcessing} />
+              </div>
+              {isProcessing && <Notice tone="info"><span className="flex items-center gap-2"><Loader2 size={15} className="animate-spin" /> Analyzing your requirements and matching available team members. This may take a moment.</span></Notice>}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
+                <span className="flex items-center gap-1.5 text-xs text-slate-500"><Sparkles size={14} /> You will review the plan before it is created.</span>
+                <Button type="submit" icon={isProcessing ? Loader2 : ArrowRight} disabled={isProcessing || !projectFile || !projectTitle.trim()}>{isProcessing ? 'Analyzing requirements…' : 'Generate project plan'}</Button>
+              </div>
+            </form>
+          </Card>
+          <div className="space-y-5">
+            <Card className="p-5">
+              <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-[#00684a]"><Layers size={18} /></div>
+              <h3 className="text-sm font-semibold text-slate-900">A plan your team can use</h3>
+              <p className="mt-2 text-xs leading-6 text-slate-500">The planner reads your requirements, drafts technical tasks, and suggests available people with relevant skills.</p>
+              <ul className="mt-5 space-y-3 border-t border-slate-200 pt-4 text-xs text-slate-600">
+                {['Review every task before assigning it', 'Choose an owner for each task', 'Connect repository links when ready'].map(item => <li key={item} className="flex items-start gap-2"><CheckCircle2 size={14} className="mt-0.5 shrink-0 text-[#00825a]" />{item}</li>)}
+              </ul>
+            </Card>
+            <div className="px-1"><h4 className="text-xs font-semibold text-slate-700">Writing a useful brief</h4><p className="mt-2 text-xs leading-6 text-slate-500">Include the project goal, key features, technical requirements, and any delivery constraints. Clear requirements make a better starting plan.</p></div>
           </div>
         </div>
       )}
 
-      {/* STEP 4: Success */}
-      {step === 4 && (
-        <div className="p-24 text-center bg-[#0a0f1a] rounded-2xl border border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)] relative overflow-hidden animate-fade-in">
-          <div className="absolute inset-0 bg-emerald-900/5 pointer-events-none"></div>
-          <CheckCircle2 className="w-24 h-24 mx-auto text-emerald-500 mb-8 relative z-10" />
-          <h3 className="text-4xl font-black text-white tracking-tight relative z-10">Initiative Dispatched</h3>
-          <p className="font-bold text-slate-400 mt-4 text-lg relative z-10 max-w-2xl mx-auto">
-            The project and bound repositories have been successfully orchestrated. Developers have been instantly notified.
-          </p>
-          <button
-            onClick={() => {
-              setStep(1);
-              setProjectTitle('');
-              setProjectFile(null);
-              setImagePreview(null);
-              setRepositories([{ repoType: 'Frontend', url: '' }, { repoType: 'Backend', url: '' }]);
-            }}
-            className="mt-12 bg-slate-900 border border-slate-700 text-white font-black px-10 py-4 rounded-xl hover:border-emerald-500 hover:bg-slate-800 transition-all relative z-10 btn-press text-sm tracking-widest uppercase"
-          >
-            Orchestrate New Initiative
-          </button>
+      {stage === 'review' && projectData && (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><p className="text-lg font-semibold text-slate-900">{projectData.title}</p><p className="mt-1 text-sm text-slate-500">Review the suggested team and assign each task before creating the project.</p></div>
+            <Button variant="secondary" icon={ArrowLeft} onClick={() => { setStage('source'); setError(''); }} disabled={isProcessing}>Edit requirements</Button>
+          </div>
+          <Card>
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4"><h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><Users size={17} className="text-[#00684a]" /> Suggested team</h2><Badge>{projectData.aiShortlistedTeam.length} members</Badge></div>
+            {projectData.aiShortlistedTeam.length ? (
+              <div className="grid divide-y divide-slate-200 md:grid-cols-2 md:divide-y-0">
+                {projectData.aiShortlistedTeam.map((member, index) => <div key={member.employeeId || member.name || index} className="flex items-start gap-3 border-b border-slate-100 p-5 last:border-b-0"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-[#00684a]">{member.name?.split(' ').map(part => part[0]).slice(0, 2).join('')}</span><div><p className="text-sm font-medium text-slate-800">{member.name} <span className="ml-2 text-xs font-normal text-slate-500">{member.role}</span></p><p className="mt-1.5 text-xs leading-5 text-slate-500">{member.matchReason || member.reason || 'Suggested for this project.'}</p></div></div>)}
+              </div>
+            ) : <div className="p-5"><Notice tone="warning">No matching team members were suggested. Update the requirements or check your workforce availability before continuing.</Notice></div>}
+          </Card>
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-4"><div><h2 className="text-sm font-semibold text-slate-900">Task allocation</h2><p className="mt-1 text-xs text-slate-500">AI-generated tasks are a starting point. Check titles, complexity, and ownership.</p></div><Badge tone={unassigned ? 'amber' : 'green'} dot>{unassigned ? `${unassigned} need an owner` : 'All tasks assigned'}</Badge></div>
+            <div className="overflow-x-auto">
+              <table className="ws-table w-full text-left text-sm">
+                <thead><tr><th className="w-12">#</th><th>Task</th><th className="w-32">Complexity</th><th className="w-60">Assigned to</th></tr></thead>
+                <tbody>{tasks.map((task, index) => <tr key={index}><td className="align-top text-xs text-slate-400">{String(index + 1).padStart(2, '0')}</td><td className="min-w-[280px]"><p className="font-medium text-slate-800">{task.title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{task.description}</p></td><td className="align-top"><Badge tone={task.complexity === 'High' || task.complexity === 'Critical' ? 'amber' : 'neutral'}>{task.complexity}</Badge></td><td className="align-top"><select className="w-full min-w-[180px]" aria-label={`Assign ${task.title}`} value={task.assignedTo} onChange={event => updateTask(index, { assignedTo: event.target.value })} disabled={isProcessing}><option value="">Select an owner</option>{projectData.aiShortlistedTeam.map((member, memberIndex) => <option key={member.employeeId || member.name || memberIndex} value={member.name}>{member.name}</option>)}</select></td></tr>)}</tbody>
+              </table>
+            </div>
+          </Card>
+          <Card>
+            <details>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4"><span className="flex items-center gap-2 text-sm font-semibold text-slate-800"><GitBranch size={17} className="text-slate-500" /> Repository links <span className="text-xs font-normal text-slate-500">Optional</span></span><ChevronDown size={16} className="text-slate-400" /></summary>
+              <div className="space-y-3 border-t border-slate-200 p-6">
+                <p className="mb-4 text-xs text-slate-500">Attach repositories so your team can find the code alongside the project.</p>
+                {repositories.map((repository, index) => <div key={index} className="flex flex-wrap gap-3 sm:flex-nowrap"><select aria-label={`Repository ${index + 1} type`} className="w-full sm:w-40" value={repository.repoType} onChange={event => updateRepository(index, { repoType: event.target.value })} disabled={isProcessing}>{repositoryTypes.map(type => <option key={type}>{type}</option>)}</select><input type="url" aria-label={`Repository ${index + 1} URL`} className="min-w-0 flex-1" placeholder="https://github.com/organization/repository" value={repository.url} onChange={event => updateRepository(index, { url: event.target.value })} disabled={isProcessing} /><Button variant="ghost" icon={Trash2} aria-label={`Remove repository ${index + 1}`} onClick={() => setRepositories(previous => previous.filter((_, position) => position !== index))} disabled={isProcessing} /></div>)}
+                <Button variant="secondary" size="sm" icon={Plus} onClick={() => setRepositories(previous => [...previous, { repoType: 'Other', url: '' }])} disabled={isProcessing}>Add repository</Button>
+              </div>
+            </details>
+          </Card>
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1"><p className="text-xs text-slate-500">{tasks.length} tasks · {projectData.aiShortlistedTeam.length} suggested members · {repositories.filter(repository => repository.url.trim()).length} repositories</p><Button icon={isProcessing ? Loader2 : Check} onClick={dispatchProject} disabled={isProcessing || !!unassigned || !tasks.length}>{isProcessing ? 'Creating project…' : 'Confirm & create project'}</Button></div>
         </div>
       )}
+
+      {stage === 'complete' && (
+        <Card className="px-6 py-14 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-[#00825a]"><CheckCircle2 size={28} /></div>
+          <h2 className="text-xl font-semibold text-slate-900">Your project is ready</h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500"><strong className="font-medium text-slate-800">{projectData?.title}</strong> has been created with {tasks.length} assigned tasks. Follow your team’s progress in Projects.</p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">{createdProject && onOpenProject && <Button icon={ArrowRight} onClick={() => onOpenProject(createdProject)}>Open project</Button>}<Button variant="secondary" icon={Plus} onClick={reset}>Create another project</Button></div>
+        </Card>
+      )}
+      <Modal open={showSimulation} title="Simulate an incident alert" description="Use a simulation to check how the team receives an incident notification." onClose={() => setShowSimulation(false)} footer={<><Button variant="secondary" onClick={() => setShowSimulation(false)}>Cancel</Button><Button icon={Radio} onClick={simulateAlert}>Send simulated alert</Button></>}>
+        <Notice tone="info">This sends a clearly marked simulated incident alert to connected team members. It does not cause an actual hardware outage.</Notice>
+      </Modal>
     </div>
   );
 }
