@@ -29,6 +29,14 @@ Run `npm test`, `npm run lint`, and `npm run build` before publishing. The outpu
 - For failed login or persistence, verify Render's database readiness endpoint and logs.
 - A sleeping Render Free backend can take about a minute to wake; retry after it starts.
 
+### Socket connection errors
+
+The client starts with WebSocket and tries HTTP polling if that connection is rejected. Automatic reconnect uses a backoff; restarting Render or deploying a new version can still briefly disconnect live updates. Persisted chat history is reloaded after reconnection.
+
+If an HTTP 400 response contains `{"code":1,"message":"Session ID unknown"}`, the request is using a session the receiving backend no longer knows. This can happen after a restart or when polling requests reach different service instances. WebSocket-first avoids the polling-to-WebSocket upgrade during normal connections. Polling fallback still needs session affinity if multiple instances serve the app; do not scale the current single-process/local-upload setup without addressing that requirement.
+
+Keep `VITE_SOCKET_URL` at the Render origin, without `/api` or `/socket.io`. After a frontend update reaches Vercel, reload the page to discard any old in-memory socket session. If errors continue, inspect the failed request's JSON response and the corresponding Render restart/deploy logs.
+
 The current authentication remains a prototype, and some integrations are demonstration-only or unavailable. Use demonstration data until server-verified authorization and password hashing are implemented. This configuration does not create a MongoDB database or a paid hosting plan.
 
 References: [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite), [Vercel project configuration](https://vercel.com/docs/project-configuration/vercel-json), [Vercel Node versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions), [Vite environment variables](https://vite.dev/guide/env-and-mode.html).

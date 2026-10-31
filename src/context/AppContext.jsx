@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
-import io from 'socket.io-client';
 import API, { SOCKET_URL } from '../services/api';
 import { mergeMessages } from '../services/messages';
+import { createWorkspaceSocket } from '../services/socket';
 
 const AppContext = createContext();
 
@@ -26,7 +26,7 @@ export const AppProvider = ({ children }) => {
         if (!userId) return;
         const controller = new AbortController();
         let active = true;
-        const newSocket = io(SOCKET_URL, { reconnectionDelay: 1000 });
+        const newSocket = createWorkspaceSocket(SOCKET_URL);
         setSocket(newSocket);
 
         const fetchHistory = async () => {
@@ -52,6 +52,7 @@ export const AppProvider = ({ children }) => {
         newSocket.on('receive_message', message => {
             setChatMessages(previous => mergeMessages(previous, [message]));
         });
+        newSocket.connect();
         fetchHistory();
 
         return () => {
